@@ -1,0 +1,12 @@
+output "vpc_id"              { value = aws_vpc.main.id }
+output "vpc_cidr"            { value = aws_vpc.main.cidr_block }
+output "public_subnet_ids"   { value = aws_subnet.public[*].id }
+output "private_subnet_ids"  { value = aws_subnet.private[*].id }
+output "data_subnet_ids"     { value = aws_subnet.data[*].id }
+output "management_subnet_ids" { value = aws_subnet.management[*].id }
+output "cde_subnet_ids"      { value = var.enable_cde ? aws_subnet.cde[*].id : [] }
+output "nat_gateway_ids"     { value = aws_nat_gateway.main[*].id }
+output "private_route_table_ids" { value = aws_route_table.private[*].id }
+output "vpc_endpoint_sg_id"  { value = aws_security_group.vpc_endpoints.id }
+output "azs"                  { value = local.azs }
+output "s3_endpoint_id"       { value = aws_vpc_endpoint.s3.id }

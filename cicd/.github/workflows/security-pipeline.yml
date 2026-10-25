@@ -1,0 +1,703 @@
+################################################################################
+# Security-First CI/CD Pipeline — 11 Stages
+# SAST · Secret Scan · SCA · IaC Scan · Container Scan · DAST · Image Sign
+# SLSA L3 Provenance · SBOM · Compliance Gate · Canary Deploy
+# Compliant with: PCI Req 6.3, HIPAA §164.308(a)(8), NIST SSDF
+################################################################################
+
+name: Security Pipeline
+
+on:
+  push:
+    branches: [main, develop, "release/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # OIDC for AWS + Sigstore keyless signing
+  contents: read
+  security-events: write
+  packages: write
+  attestations: write
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  ################################################################################
+  # Stage 1: Secret Scanning (fail fast — no secrets in code)
+  ################################################################################
+  secret-scan:
+    name: "Stage 1: Secret Scanning"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git-based scanning
+
+      - name: Gitleaks — git history scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: TruffleHog — deep entropy scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Detect-Secrets baseline check
+        run: |
+          pip install detect-secrets
+          detect-secrets scan --baseline .secrets.baseline
+          detect-secrets audit .secrets.baseline --report || true
+
+  ################################################################################
+  # Stage 2: SAST — Static Analysis
+  ################################################################################
+  sast:
+    name: "Stage 2: SAST"
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    strategy:
+      matrix:
+        language: [javascript, python]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: true
+
+      - name: Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/owasp-top-ten
+            p/nodejs
+            p/python
+            p/jwt
+            p/secrets
+          generateSarif: "1"
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+
+      - name: SonarQube Analysis
+        uses: SonarSource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  ################################################################################
+  # Stage 3: SCA — Software Composition Analysis
+  ################################################################################
+  sca:
+    name: "Stage 3: SCA / Dependency Check"
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Snyk — Open Source vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: false
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+      - name: Upload Snyk SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
+
+      - name: OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: "${{ github.repository }}"
+          path: "."
+          format: "SARIF"
+          args: >
+            --enableRetired
+            --enableExperimental
+            --failOnCVSS 7
+
+      - name: Upload OWASP DC SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/dependency-check-report.sarif
+
+      - name: pip-audit (Python packages)
+        run: |
+          pip install pip-audit
+          pip-audit --format json --output pip-audit-results.json || true
+          pip-audit --format sarif --output pip-audit.sarif
+
+      - name: License compliance check
+        run: |
+          npx license-checker --onlyAllow "MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;CC0-1.0" --excludePackages "your-internal-package"
+
+  ################################################################################
+  # Stage 4: IaC Security Scanning
+  ################################################################################
+  iac-scan:
+    name: "Stage 4: IaC Security"
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkov — Terraform/K8s/Dockerfile scanning
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: terraform,kubernetes,dockerfile,github_actions
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+          soft_fail: false
+          check: >
+            CKV_AWS_2,CKV_AWS_7,CKV_AWS_17,CKV_AWS_18,CKV_AWS_19,
+            CKV_AWS_20,CKV_AWS_21,CKV_AWS_23,CKV_AWS_24,CKV_AWS_25,
+            CKV_AWS_26,CKV_AWS_28,CKV_AWS_34,CKV_AWS_35,CKV_AWS_36
+
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-results.sarif
+
+      - name: tfsec — Terraform security analysis
+        uses: aquasecurity/tfsec-sarif-action@v0.1.4
+        with:
+          sarif_file: tfsec.sarif
+          working_directory: infrastructure/terraform
+
+      - name: Upload tfsec SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: OPA Conftest — Custom policy validation
+        run: |
+          curl -L https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar xz
+          ./conftest test --policy policies/opa/ \
+            infrastructure/terraform/environments/production/ \
+            kubernetes/ \
+            --output sarif > conftest-results.sarif
+
+      - name: Trivy — IaC scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-iac.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+      - name: Terraform fmt check
+        run: |
+          terraform fmt -check -recursive infrastructure/terraform/
+
+      - name: Terraform validate
+        run: |
+          cd infrastructure/terraform/modules/vpc && terraform init -backend=false && terraform validate
+          cd ../kms && terraform init -backend=false && terraform validate
+
+  ################################################################################
+  # Stage 5: Build Container Images
+  ################################################################################
+  build:
+    name: "Stage 5: Build Images"
+    runs-on: ubuntu-latest
+    needs: [sast, sca, iac-scan]
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-uri: ${{ steps.build.outputs.image-uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-build
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+
+      - name: Build and push (multi-platform)
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: true  # SLSA provenance
+          sbom: true        # SBOM attached to image
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+  ################################################################################
+  # Stage 6: Container Image Scanning
+  ################################################################################
+  container-scan:
+    name: "Stage 6: Container Scanning"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-build
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Trivy — comprehensive container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: sarif
+          output: trivy-container.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          ignore-unfixed: false
+          vuln-type: os,library
+          scanners: vuln,secret,misconfig
+
+      - name: Upload Trivy container SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-container.sarif
+
+      - name: Snyk Container scan
+        uses: snyk/actions/docker@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          image: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          args: --severity-threshold=high --file=Dockerfile
+
+      - name: Check ECR scan results
+        run: |
+          aws ecr wait image-scan-complete \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-id imageTag=${{ github.sha }}
+          FINDINGS=$(aws ecr describe-image-scan-findings \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-id imageTag=${{ github.sha }} \
+            --query 'imageScanFindings.findingSeverityCounts' \
+            --output json)
+          CRITICAL=$(echo $FINDINGS | jq '.CRITICAL // 0')
+          HIGH=$(echo $FINDINGS | jq '.HIGH // 0')
+          echo "Critical: $CRITICAL, High: $HIGH"
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "CRITICAL vulnerabilities found — blocking deployment"
+            exit 1
+          fi
+
+  ################################################################################
+  # Stage 7: SBOM Generation
+  ################################################################################
+  sbom:
+    name: "Stage 7: SBOM Generation"
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-build
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Attach SBOM to image
+        uses: anchore/sbom-action/publish-sbom@v0
+        with:
+          sbom-artifact-match: ".*\\.spdx\\.json$"
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.sha }}
+          path: |
+            sbom.cyclonedx.json
+            sbom.spdx.json
+          retention-days: 2555  # 7 years for compliance
+
+      - name: Store SBOM in S3 (compliance archive)
+        run: |
+          aws s3 cp sbom.cyclonedx.json \
+            s3://${{ secrets.COMPLIANCE_BUCKET }}/sbom/${{ github.sha }}/sbom.cyclonedx.json \
+            --sse aws:kms
+          aws s3 cp sbom.spdx.json \
+            s3://${{ secrets.COMPLIANCE_BUCKET }}/sbom/${{ github.sha }}/sbom.spdx.json \
+            --sse aws:kms
+
+  ################################################################################
+  # Stage 8: Image Signing (Cosign/Sigstore — SLSA L3)
+  ################################################################################
+  sign-image:
+    name: "Stage 8: Sign Image (SLSA L3)"
+    runs-on: ubuntu-latest
+    needs: [container-scan, sbom]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-build
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Sign container image (keyless — GitHub OIDC)
+        run: |
+          cosign sign --yes \
+            --rekor-url https://rekor.sigstore.dev \
+            ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+
+      - name: Attest SBOM
+        run: |
+          cosign attest --yes \
+            --rekor-url https://rekor.sigstore.dev \
+            --predicate sbom.cyclonedx.json \
+            --type cyclonedx \
+            ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+
+      - name: Generate SLSA provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ needs.build.outputs.image-digest }}
+          push-to-registry: true
+
+      - name: Verify signature
+        run: |
+          cosign verify \
+            --rekor-url https://rekor.sigstore.dev \
+            --certificate-identity-regexp "https://github.com/${{ github.repository }}/*" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            ${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}@${{ needs.build.outputs.image-digest }}
+
+  ################################################################################
+  # Stage 9: DAST — Dynamic Application Security Testing
+  ################################################################################
+  dast:
+    name: "Stage 9: DAST"
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    services:
+      app:
+        image: ${{ needs.build.outputs.image-uri }}
+        ports:
+          - 8080:8080
+        env:
+          ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OWASP ZAP — Full scan
+        uses: zaproxy/action-full-scan@v0.10.0
+        with:
+          target: http://localhost:8080
+          rules_file_name: zap-rules.tsv
+          cmd_options: "-a -j -l WARN"
+          fail_action: true
+
+      - name: Upload ZAP SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: zap.sarif
+
+      - name: Nuclei — CVE/misconfiguration scan
+        run: |
+          go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+          nuclei -u http://localhost:8080 \
+            -t cves,vulnerabilities,exposures,technologies \
+            -severity high,critical \
+            -o nuclei-results.json \
+            -sarif-export nuclei.sarif || true
+
+      - name: Upload Nuclei SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: nuclei.sarif
+
+  ################################################################################
+  # Stage 10: Compliance Gate — All checks must pass
+  ################################################################################
+  compliance-gate:
+    name: "Stage 10: Compliance Gate"
+    runs-on: ubuntu-latest
+    needs: [sast, sca, iac-scan, container-scan, sbom, sign-image]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-build
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify all security checks passed
+        run: |
+          echo "All required security stages completed:"
+          echo "✓ Secret scanning (Gitleaks + TruffleHog)"
+          echo "✓ SAST (CodeQL + Semgrep + SonarQube)"
+          echo "✓ SCA (Snyk + OWASP DC)"
+          echo "✓ IaC scanning (Checkov + tfsec + Conftest)"
+          echo "✓ Container scanning (Trivy + Snyk + ECR)"
+          echo "✓ SBOM generated (CycloneDX + SPDX)"
+          echo "✓ Image signed (Cosign keyless + SLSA L3)"
+
+      - name: Generate compliance report
+        run: |
+          cat > compliance-report.json << EOF
+          {
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "image": "${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}",
+            "image_digest": "${{ needs.build.outputs.image-digest }}",
+            "security_checks": {
+              "secret_scan": "PASSED",
+              "sast": "PASSED",
+              "sca": "PASSED",
+              "iac_scan": "PASSED",
+              "container_scan": "PASSED",
+              "sbom_generated": "PASSED",
+              "image_signed": "PASSED"
+            },
+            "compliance_frameworks": ["PCI-DSS-v4", "HIPAA", "CIS", "NIST-SSDF"],
+            "slsa_level": "L3"
+          }
+          EOF
+
+      - name: Archive compliance report
+        run: |
+          aws s3 cp compliance-report.json \
+            s3://${{ secrets.COMPLIANCE_BUCKET }}/pipeline-reports/${{ github.sha }}/compliance-report.json \
+            --sse aws:kms
+
+      - name: Notify Security Hub
+        run: |
+          aws securityhub batch-import-findings \
+            --findings "[{
+              \"SchemaVersion\": \"2018-10-08\",
+              \"Id\": \"pipeline/${{ github.sha }}\",
+              \"ProductArn\": \"arn:aws:securityhub:${{ env.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:product/${{ secrets.AWS_ACCOUNT_ID }}/default\",
+              \"GeneratorId\": \"github-actions-security-pipeline\",
+              \"AwsAccountId\": \"${{ secrets.AWS_ACCOUNT_ID }}\",
+              \"Types\": [\"Software and Configuration Checks/Industry and Regulatory Standards\"],
+              \"CreatedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+              \"UpdatedAt\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+              \"Severity\": {\"Label\": \"INFORMATIONAL\"},
+              \"Title\": \"Security pipeline passed for commit ${{ github.sha }}\",
+              \"Description\": \"All security checks passed — image signed and SBOM generated\",
+              \"Compliance\": {\"Status\": \"PASSED\"}
+            }]"
+
+  ################################################################################
+  # Stage 11: Deploy — Canary → Progressive Rollout
+  ################################################################################
+  deploy-staging:
+    name: "Stage 11a: Deploy to Staging"
+    runs-on: ubuntu-latest
+    needs: compliance-gate
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.yourdomain.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy-staging
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name myapp-staging --region ${{ env.AWS_REGION }}
+
+      - name: Deploy with Helm (staging)
+        run: |
+          helm upgrade --install myapp ./helm/myapp \
+            --namespace app \
+            --create-namespace \
+            --set image.repository=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ github.sha }} \
+            --set image.digest=${{ needs.build.outputs.image-digest }} \
+            --set environment=staging \
+            --set replicaCount=2 \
+            --values helm/myapp/values-staging.yaml \
+            --wait \
+            --timeout 10m
+
+      - name: Run smoke tests
+        run: |
+          kubectl wait --for=condition=available deployment/myapp -n app --timeout=300s
+          curl -f https://staging.yourdomain.com/health || exit 1
+
+  deploy-production:
+    name: "Stage 11b: Deploy to Production (Canary)"
+    runs-on: ubuntu-latest
+    needs: compliance-gate
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://yourdomain.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy-production
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name myapp-prod --region ${{ env.AWS_REGION }}
+
+      - name: Canary deployment (5% traffic)
+        run: |
+          helm upgrade --install myapp ./helm/myapp \
+            --namespace app \
+            --set image.repository=${{ env.ECR_REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --set image.tag=${{ github.sha }} \
+            --set image.digest=${{ needs.build.outputs.image-digest }} \
+            --set canary.enabled=true \
+            --set canary.weight=5 \
+            --set environment=production \
+            --values helm/myapp/values-production.yaml \
+            --wait \
+            --timeout 10m
+
+      - name: Monitor canary (5 minutes)
+        run: |
+          echo "Monitoring canary for 5 minutes..."
+          sleep 300
+          # Check error rate
+          ERROR_RATE=$(kubectl exec -n monitoring deployment/prometheus -- \
+            promtool query instant \
+            'rate(http_requests_total{status=~"5..",namespace="app"}[5m]) / rate(http_requests_total{namespace="app"}[5m])' \
+            | awk '{print $2}')
+          if (( $(echo "$ERROR_RATE > 0.01" | bc -l) )); then
+            echo "Error rate ${ERROR_RATE} > 1% — rolling back canary"
+            helm rollback myapp --namespace app
+            exit 1
+          fi
+          echo "Canary healthy — promoting to 100%"
+
+      - name: Promote canary to 100%
+        run: |
+          helm upgrade myapp ./helm/myapp \
+            --namespace app \
+            --set image.tag=${{ github.sha }} \
+            --set canary.enabled=false \
+            --set canary.weight=100 \
+            --values helm/myapp/values-production.yaml \
+            --wait \
+            --timeout 10m
+
+      - name: Tag production image
+        run: |
+          aws ecr batch-get-image \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-ids imageTag=${{ github.sha }} \
+            --query 'images[].imageManifest' \
+            --output text | \
+          aws ecr put-image \
+            --repository-name ${{ env.IMAGE_NAME }} \
+            --image-tag "prod-$(date +%Y%m%d)-${{ github.sha }}" \
+            --image-manifest file:///dev/stdin
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          aws sns publish \
+            --topic-arn ${{ secrets.SECURITY_SNS_ARN }} \
+            --message "Deployment successful: ${{ github.sha }} deployed to production" \
+            --subject "Production Deployment Success"

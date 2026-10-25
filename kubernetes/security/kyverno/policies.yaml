@@ -1,0 +1,294 @@
+################################################################################
+# Kyverno Policies — Pod Security, Image Verification, HIPAA/PCI Compliance
+################################################################################
+
+# Require Cosign-signed images (SLSA L3)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-signed-images
+  annotations:
+    policies.kyverno.io/title: Require Signed Images
+    policies.kyverno.io/description: All container images must be signed with Cosign/Sigstore
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: check-image-signature
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [app, production]
+      verifyImages:
+        - imageReferences:
+            - "*.dkr.ecr.*.amazonaws.com/*"
+          attestors:
+            - count: 1
+              entries:
+                - keyless:
+                    subject: "https://github.com/your-org/*"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+          mutateDigest: true
+          required: true
+
+---
+# Restrict to ECR images only (no Docker Hub in prod)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: allow-only-ecr-and-internal
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [app, production, monitoring]
+      validate:
+        message: "Images must come from approved ECR registries or internal mirrors"
+        pattern:
+          spec:
+            containers:
+              - image: "*.dkr.ecr.*.amazonaws.com/* | 602401143452.dkr.ecr.*.amazonaws.com/*"
+
+---
+# Disallow privileged containers
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged-containers
+  annotations:
+    policies.kyverno.io/title: Disallow Privileged Containers
+    policies.kyverno.io/description: "HIPAA/PCI: No privileged containers allowed"
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: privileged-containers
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Privileged mode is not allowed. Set privileged to false."
+        pattern:
+          spec:
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): "false"
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"
+
+---
+# Require read-only root filesystem
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-ro-rootfs
+  annotations:
+    policies.kyverno.io/title: Require Read-Only Root Filesystem
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-readOnlyRootFilesystem
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [app, production]
+      validate:
+        message: "Root filesystem must be read-only"
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+
+---
+# Disallow hostNetwork, hostPID, hostIPC
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-host-namespaces
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: host-namespaces
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "Sharing the host network/PID/IPC is not allowed"
+        pattern:
+          spec:
+            =(hostPID): "false"
+            =(hostIPC): "false"
+            =(hostNetwork): "false"
+
+---
+# Require non-root user
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-run-as-non-root
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: run-as-non-root
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [app, production]
+      validate:
+        message: "Containers must not run as root"
+        anyPattern:
+          - spec:
+              securityContext:
+                runAsNonRoot: true
+          - spec:
+              containers:
+                - securityContext:
+                    runAsUser: ">0"
+
+---
+# Require resource limits (prevent resource exhaustion DoS)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-resources
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [app, production]
+      validate:
+        message: "CPU and memory limits are required"
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+                    cpu: "?*"
+
+---
+# Disallow host path mounts
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-host-path
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: host-path
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+      validate:
+        message: "HostPath volumes are not allowed"
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.spec.volumes[].hostPath | length(@) }}"
+                operator: GreaterThan
+                value: "0"
+
+---
+# Require labels for all workloads (for cost allocation and audit)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-team-label
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, StatefulSet, DaemonSet]
+              namespaces: [app, production]
+      validate:
+        message: "Required labels: app, team, data-classification"
+        pattern:
+          metadata:
+            labels:
+              app: "?*"
+              team: "?*"
+              data-classification: "?*"
+
+---
+# Block PHI data in ConfigMaps (enforce Secrets Manager usage)
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: block-phi-in-configmaps
+  annotations:
+    policies.kyverno.io/title: Block PHI in ConfigMaps
+    policies.kyverno.io/description: "HIPAA: PHI must never be stored in ConfigMaps"
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: check-configmap-data
+      match:
+        any:
+          - resources:
+              kinds: [ConfigMap]
+              namespaces: [app, production]
+      validate:
+        message: "ConfigMaps must not contain PHI. Use Secrets Manager via External Secrets Operator."
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.object.metadata.annotations.\"contains-phi\" || '' }}"
+                operator: Equals
+                value: "true"
+
+---
+# Require SecurityContext capabilities drop ALL
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: drop-all-capabilities
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: drop-capabilities
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [app, production]
+      validate:
+        message: "Containers must drop ALL capabilities"
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    drop:
+                      - ALL

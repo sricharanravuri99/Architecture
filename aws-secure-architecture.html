@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Secure Enterprise Architecture — Healthcare &amp; Finance Edition</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#070d1a;color:#e2e8f0;min-height:100vh}
+/* NAV */
+.nav{background:#0a1020;border-bottom:1px solid #1a3054;padding:0 20px;display:flex;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:100;gap:0}
+.nav-brand{color:#f97316;font-size:1rem;font-weight:800;padding:13px 20px 13px 0;border-right:1px solid #1a3054;margin-right:4px;white-space:nowrap}
+.nav-brand span{color:#60a5fa}
+.tab-btn{padding:13px 13px;cursor:pointer;color:#64748b;border-bottom:2px solid transparent;transition:all .15s;font-size:.78rem;font-weight:500;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;outline:none}
+.tab-btn:hover{color:#cbd5e1}
+.tab-btn.active{color:#f97316;border-bottom-color:#f97316}
+.tab-btn.hc{border-bottom-color:transparent}.tab-btn.hc.active{color:#2dd4bf;border-bottom-color:#2dd4bf}
+.tab-btn.fin{border-bottom-color:transparent}.tab-btn.fin.active{color:#fbbf24;border-bottom-color:#fbbf24}
+.tab-btn.ir{border-bottom-color:transparent}.tab-btn.ir.active{color:#f43f5e;border-bottom-color:#f43f5e}
+/* CONTENT */
+.content{padding:24px 28px;max-width:1700px;margin:0 auto}
+.tab-pane{display:none}.tab-pane.active{display:block}
+/* BANNER */
+.banner{background:linear-gradient(135deg,#0f2040,#0a1628);border:1px solid #1d4ed8;border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:.73rem;color:#93c5fd;display:flex;align-items:center;gap:10px}
+.banner-hc{border-color:#0d9488;color:#2dd4bf;background:linear-gradient(135deg,#021f1e,#041410)}
+.banner-fin{border-color:#d97706;color:#fbbf24;background:linear-gradient(135deg,#1c1200,#0f0a00)}
+.banner-ir{border-color:#be123c;color:#f43f5e;background:linear-gradient(135deg,#1f0812,#0d0408)}
+/* HEADINGS */
+.page-title{font-size:1.4rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}
+.page-sub{color:#64748b;font-size:.85rem;margin-bottom:20px}
+/* CARDS */
+.card{background:#0c1525;border:1px solid #1a3054;border-radius:10px;padding:16px;margin-bottom:0}
+.card-hc{border-color:#0d9488;background:#041514}
+.card-fin{border-color:#b45309;background:#120e04}
+.card-ir{border-color:#9f1239;background:#120408}
+.card-hd{font-size:.75rem;font-weight:700;color:#f97316;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.card-hd::before{content:'';width:3px;height:13px;background:currentColor;border-radius:2px;display:block}
+.card-hd-hc{color:#2dd4bf}.card-hd-fin{color:#fbbf24}.card-hd-ir{color:#f43f5e}
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+/* SERVICE BOXES */
+.svc{border:1px solid;border-radius:8px;padding:9px 11px;cursor:default;transition:transform .15s,box-shadow .15s;position:relative;text-align:center}
+.svc:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.svc-icon{font-size:1.4rem;display:block;margin-bottom:4px}
+.svc-name{font-size:.7rem;font-weight:700;display:block}
+.svc-tag{font-size:.6rem;color:#94a3b8;display:block;margin-top:2px}
+/* Colors */
+.c-sec{border-color:#b91c1c;background:#120606}.c-sec .svc-name{color:#f87171}
+.c-net{border-color:#1d4ed8;background:#060e22}.c-net .svc-name{color:#60a5fa}
+.c-cmp{border-color:#7e22ce;background:#0e0720}.c-cmp .svc-name{color:#c084fc}
+.c-dat{border-color:#15803d;background:#06130a}.c-dat .svc-name{color:#4ade80}
+.c-ops{border-color:#c2410c;background:#120a04}.c-ops .svc-name{color:#fb923c}
+.c-mon{border-color:#0e7490;background:#04121a}.c-mon .svc-name{color:#22d3ee}
+.c-iam{border-color:#b45309;background:#120d04}.c-iam .svc-name{color:#fbbf24}
+.c-hc{border-color:#0d9488;background:#041514}.c-hc .svc-name{color:#2dd4bf}
+.c-fin{border-color:#d97706;background:#150e02}.c-fin .svc-name{color:#fbbf24}
+.c-hsm{border-color:#7c3aed;background:#0e0820}.c-hsm .svc-name{color:#a78bfa}
+/* TOOLTIP */
+.tip{visibility:hidden;opacity:0;background:#0c1e38;border:1px solid #2563eb;border-radius:8px;padding:9px 12px;font-size:.7rem;position:absolute;z-index:9999;bottom:110%;left:50%;transform:translateX(-50%);width:230px;white-space:normal;text-align:left;transition:opacity .15s;pointer-events:none;line-height:1.5}
+.tip strong{display:block;color:#f97316;margin-bottom:3px;font-size:.72rem}
+.svc:hover .tip{visibility:visible;opacity:1}
+/* LAYERS */
+.layer{margin-bottom:18px}
+.layer-lbl{font-size:.67rem;color:#475569;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.layer-lbl::after{content:'';flex:1;height:1px;background:#1a3054}
+.svc-row{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-start}
+/* VPC */
+.vpc-wrap{border:2px solid #1d4ed8;border-radius:12px;padding:16px;background:#06101e;position:relative}
+.vpc-badge{position:absolute;top:-10px;left:14px;background:#1d4ed8;color:#fff;font-size:.7rem;font-weight:700;padding:2px 10px;border-radius:9999px}
+.az-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
+.az{border:1px solid #1a3054;border-radius:9px;padding:10px;background:#080e1c}
+.az-lbl{font-size:.65rem;color:#475569;text-align:center;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.sn{border-radius:5px;padding:6px 8px;margin-bottom:5px;font-size:.65rem;text-align:center;font-weight:600}
+.sn-pub{background:#091a09;border:1px solid #22c55e;color:#4ade80}
+.sn-prv{background:#070f22;border:1px solid #3b82f6;color:#60a5fa}
+.sn-dat{background:#0f061e;border:1px solid #a855f7;color:#c084fc}
+.sn-mgmt{background:#100806;border:1px solid #f97316;color:#fb923c}
+.sn-cde{background:#120404;border:1px solid #b91c1c;color:#f87171}
+/* PIPELINE */
+.pipe{display:flex;align-items:flex-start;gap:30px;overflow-x:auto;padding-bottom:10px}
+.stage{background:#0c1525;border:1px solid #1a3054;border-radius:8px;padding:12px;min-width:148px;flex-shrink:0;position:relative}
+.pipe>.stage:not(:last-child)::after{content:'→';position:absolute;right:-22px;top:16px;color:#f97316;font-size:1.4rem;z-index:2}
+.stage-hd{font-size:.72rem;font-weight:700;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid #1a3054;display:flex;align-items:center;gap:5px}
+.stage-item{font-size:.64rem;color:#94a3b8;padding:2px 0;display:flex;align-items:center;gap:4px}
+.stage-item::before{content:'▸';color:#f97316;font-size:.6rem}
+.gate{background:#160606;border:1px solid #b91c1c;border-radius:4px;padding:3px 7px;margin:3px 0;font-size:.64rem;color:#f87171;display:flex;align-items:center;gap:4px}
+.gate::before{content:'🛡'}
+.gate-hc{background:#041514;border-color:#0d9488;color:#2dd4bf}.gate-hc::before{content:'🏥'}
+.gate-fin{background:#120e04;border-color:#d97706;color:#fbbf24}.gate-fin::before{content:'💳'}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:9999px;font-size:.61rem;font-weight:700}
+.b-red{background:#450a0a;color:#f87171}
+.b-grn{background:#052e16;color:#86efac}
+.b-blu{background:#0c1a4a;color:#93c5fd}
+.b-org{background:#431407;color:#fdba74}
+.b-yel{background:#422006;color:#fde68a}
+.b-teal{background:#042220;color:#2dd4bf}
+.b-gold{background:#1c1000;color:#fbbf24}
+.b-rose{background:#1f0812;color:#f43f5e}
+.b-purple{background:#1a0830;color:#a78bfa}
+.b-new{background:#1a2a60;color:#93c5fd;font-size:.58rem}
+/* LEGEND */
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:.68rem;color:#94a3b8}
+.leg-dot{width:9px;height:9px;border-radius:2px}
+/* SECURITY CONTROLS */
+.sc{border-left:3px solid;padding:9px 12px;border-radius:0 6px 6px 0;margin-bottom:7px;background:#090f1e}
+.sc h4{font-size:.74rem;font-weight:700;margin-bottom:3px}
+.sc p{font-size:.67rem;color:#94a3b8;line-height:1.5}
+.ctrl-crit{border-color:#b91c1c}.ctrl-crit h4{color:#f87171}
+.ctrl-high{border-color:#c2410c}.ctrl-high h4{color:#fb923c}
+.ctrl-med{border-color:#b45309}.ctrl-med h4{color:#fbbf24}
+.ctrl-hc{border-color:#0d9488}.ctrl-hc h4{color:#2dd4bf}
+.ctrl-fin{border-color:#d97706}.ctrl-fin h4{color:#fbbf24}
+/* TOOL TABLE */
+.tool-row{display:flex;justify-content:space-between;align-items:center;padding:7px 11px;border-bottom:1px solid #0f1f38;font-size:.72rem}
+.tool-row:last-child{border-bottom:none}
+.tool-name{font-weight:600;color:#e2e8f0;min-width:130px}
+.tool-purpose{color:#64748b;font-size:.65rem;flex:1;padding:0 10px}
+/* TOOL GRID */
+.tool-cat{background:#0c1525;border:1px solid #1a3054;border-radius:9px;padding:14px;margin-bottom:12px}
+.tool-cat-hd{font-size:.77rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:7px}
+.tc{background:#090f1e;border:1px solid #1a3054;border-radius:6px;padding:7px 9px;transition:border-color .15s;cursor:default}
+.tc:hover{border-color:#f97316}
+.tc .tn{font-weight:700;color:#e2e8f0;display:block;margin-bottom:2px;font-size:.7rem}
+.tc .tu{color:#64748b;font-size:.61rem;display:block}
+/* FLOW */
+.flow-arrow{text-align:center;color:#f97316;font-size:1rem;margin:5px 0}
+/* OVERVIEW GRID */
+.ov-grid{display:grid;grid-template-columns:240px 1fr 240px;gap:18px;align-items:start}
+.side-col{display:flex;flex-direction:column;gap:12px}
+.main-col{display:flex;flex-direction:column;gap:10px}
+.inet-box{border:1px solid #1a3054;border-radius:8px;padding:8px;text-align:center;background:#040810}
+.inet-box .ic{font-size:1.8rem}.inet-box .lb{font-size:.72rem;color:#64748b;margin-top:3px}
+/* COMPLIANCE */
+.comp-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid #1a3054;border-radius:6px;margin-bottom:7px;background:#0c1525;font-size:.74rem}
+.comp-name{font-weight:600;color:#e2e8f0}
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#07091a}
+::-webkit-scrollbar-thumb{background:#1a3054;border-radius:3px}
+/* IMPROVED PILL */
+.pill-new{display:inline-block;background:#1a2a60;color:#93c5fd;font-size:.58rem;font-weight:700;padding:1px 6px;border-radius:9999px;margin-left:5px;vertical-align:middle}
+.pill-hc{background:#042220;color:#2dd4bf}
+.pill-fin{background:#1c1000;color:#fbbf24}
+/* REQUIREMENT ROW */
+.req-row{display:flex;gap:8px;margin-bottom:6px;font-size:.7rem}
+.req-num{background:#1a3054;color:#93c5fd;border-radius:4px;padding:2px 7px;font-weight:700;font-size:.63rem;white-space:nowrap;align-self:flex-start;margin-top:1px}
+.req-num-hc{background:#042220;color:#2dd4bf}
+.req-num-fin{background:#1c1000;color:#fbbf24}
+.req-txt{color:#94a3b8;line-height:1.5}
+.req-aws{color:#60a5fa;font-size:.63rem}
+/* PHI FLOW */
+.phi-flow{display:flex;gap:0;align-items:center;flex-wrap:wrap;margin:10px 0}
+.phi-box{background:#041514;border:1px solid #0d9488;border-radius:6px;padding:7px 11px;font-size:.67rem;color:#2dd4bf;text-align:center;min-width:100px}
+.phi-box.phi-red{background:#120606;border-color:#b91c1c;color:#f87171}
+.phi-arrow{color:#0d9488;font-size:1rem;margin:0 4px}
+/* PCI ZONE */
+.pci-zone{border:2px dashed #b91c1c;border-radius:10px;padding:14px;background:#0c0404;position:relative;margin-bottom:14px}
+.pci-zone-lbl{position:absolute;top:-10px;left:12px;background:#b91c1c;color:#fff;font-size:.65rem;font-weight:700;padding:1px 9px;border-radius:9999px}
+/* RISK TABLE */
+.risk-row{display:grid;grid-template-columns:1fr 80px 80px 80px;gap:10px;padding:7px 12px;border-bottom:1px solid #0f1f38;font-size:.68rem;align-items:center}
+.risk-row:first-child{font-size:.63rem;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.risk-sev{border-radius:4px;padding:2px 8px;font-weight:700;text-align:center;font-size:.63rem}
+/* RESPONSIVE */
+@media(max-width:1200px){.ov-grid{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.g5{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.g3{grid-template-columns:1fr 1fr}.az-grid{grid-template-columns:1fr}}
+@media(max-width:700px){.g2{grid-template-columns:1fr}.g3{grid-template-columns:1fr}.ov-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">AWS <span>Secure</span> Arch</div>
+  <button class="tab-btn active" onclick="showTab('overview',this)">Overview</button>
+  <button class="tab-btn" onclick="showTab('network',this)">Network &amp; VPC</button>
+  <button class="tab-btn" onclick="showTab('security',this)">Security</button>
+  <button class="tab-btn" onclick="showTab('cicd',this)">CI/CD Pipeline</button>
+  <button class="tab-btn" onclick="showTab('devops',this)">DevOps Stack</button>
+  <button class="tab-btn hc" onclick="showTab('healthcare',this)">Healthcare / HIPAA</button>
+  <button class="tab-btn fin" onclick="showTab('finance',this)">Finance / PCI-DSS</button>
+  <button class="tab-btn" onclick="showTab('compliance',this)">Compliance</button>
+  <button class="tab-btn ir" onclick="showTab('ir',this)">IR &amp; DR</button>
+</nav>
+
+<div class="content">
+
+<!-- ===== TAB 1: OVERVIEW ===== -->
+<div id="overview" class="tab-pane active">
+<div class="page-title">Enterprise AWS Architecture — Healthcare &amp; Finance Production Blueprint</div>
+<div class="page-sub">Multi-AZ · Zero-Trust · GitOps · HIPAA · PCI-DSS · SOX · GLBA · NIST 800-53 · CIS Benchmark Level 2</div>
+
+<div class="banner">
+  <span>⚡</span>
+  <span><strong>v2 — Improvements:</strong> Added CloudHSM (FIPS 140-2 L3) · AWS Control Tower · HealthLake · Fraud Detector · Firewall Manager · Private CA · DNS Firewall · Nitro Enclaves · Lake Formation · dedicated Healthcare &amp; Finance tabs · Incident Response playbooks · multi-region DR · CDE isolation · PHI access audit · break-glass procedures · SoD enforcement</span>
+</div>
+
+<div class="ov-grid">
+<!-- LEFT SIDEBAR -->
+<div class="side-col">
+  <div class="card">
+    <div class="card-hd" style="color:#f87171">Edge &amp; Identity Protection</div>
+    <div class="svc-row" style="flex-direction:column;gap:7px">
+      <div class="svc c-sec"><span class="svc-icon">🛡️</span><span class="svc-name">Shield Advanced</span><span class="svc-tag">DDoS L3/L4/L7 + DRT</span><div class="tip"><strong>AWS Shield Advanced</strong>Always-on DDoS. Managed DRT team. Cost protection during attacks. AWS Shield Response Team 24/7. Route53, CloudFront, ALB, EIP, NLB protected.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🔥</span><span class="svc-name">WAF v2 + Bot Control</span><span class="svc-tag">OWASP Top 10 + IP Reputation</span><div class="tip"><strong>AWS WAF v2</strong>SQL injection, XSS, LFI/RFI blocks. AWS Managed Rules (AWSManagedRulesCommonRuleSet + KnownBadInputs + AmazonIpReputationList). Rate limiting per IP. Bot Control for scraping. Fraud Control add-on.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🌐</span><span class="svc-name">Firewall Manager</span><span class="svc-tag">Centralized WAF/SG policies</span><div class="tip"><strong>AWS Firewall Manager</strong><span class="pill-new">NEW</span> Centrally manage WAF rules, Shield Advanced, Security Groups across all accounts in the organization. Enforce compliance automatically on new accounts.</div></div>
+      <div class="svc c-iam"><span class="svc-icon">👤</span><span class="svc-name">IAM Identity Center</span><span class="svc-tag">SSO + MFA + ABAC</span><div class="tip"><strong>IAM Identity Center</strong>SAML 2.0 / OIDC SSO. MFA enforced (FIDO2/WebAuthn). Attribute-based access control. Permission sets per role. No long-lived keys. AD/Okta integration.</div></div>
+      <div class="svc c-iam"><span class="svc-icon">🔑</span><span class="svc-name">Cognito + FIDO2</span><span class="svc-tag">User pool + WebAuthn MFA</span><div class="tip"><strong>Amazon Cognito</strong>User pool with MFA (TOTP + SMS + FIDO2). Passwordless via passkeys. OIDC/OAuth 2.0. Adaptive auth for suspicious logins. Cognito advanced security features.</div></div>
+      <div class="svc c-hsm"><span class="svc-icon">🔒</span><span class="svc-name">CloudHSM</span><span class="svc-tag">FIPS 140-2 Level 3</span><div class="tip"><strong>AWS CloudHSM</strong><span class="pill-new">NEW</span> Hardware security module cluster. Required for PCI-DSS and HIPAA high-sensitivity keys. Dedicated tamper-resistant hardware. Customer owns all keys. Integrates with KMS custom key store.</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="color:#f87171">Threat Detection &amp; Forensics</div>
+    <div class="svc-row" style="flex-direction:column;gap:7px">
+      <div class="svc c-sec"><span class="svc-icon">🔍</span><span class="svc-name">GuardDuty</span><span class="svc-tag">ML + 70 threat intel feeds</span><div class="tip"><strong>Amazon GuardDuty</strong>Analyzes CloudTrail, VPC Flow Logs, DNS, S3 data events. EKS runtime monitoring. RDS login anomalies. Lambda threat detection. Malware protection for EC2/ECS. Auto-remediation via EventBridge.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🏛️</span><span class="svc-name">Security Hub</span><span class="svc-tag">ASFF + SIEM aggregation</span><div class="tip"><strong>Security Hub</strong>Cross-account finding aggregation. CIS AWS v2, PCI-DSS, NIST 800-53, HIPAA standards. Automated response via EventBridge. Integration: Splunk, Crowdstrike, Prisma Cloud.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🕵️</span><span class="svc-name">Detective</span><span class="svc-tag">Graph + behavioral forensics</span><div class="tip"><strong>Amazon Detective</strong>Entity graph from 12+ months of data. Visualize blast radius. Timeline of entity activity. Correlates GuardDuty findings across accounts.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🔬</span><span class="svc-name">Inspector V2</span><span class="svc-tag">Continuous CVE + reachability</span><div class="tip"><strong>Inspector V2</strong>EC2, ECR, Lambda scanning. Reachability-based prioritization. EPSS scores. SBOM export. Risk score ≠ just CVSS — considers network exposure.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🔎</span><span class="svc-name">Macie</span><span class="svc-tag">PII/PHI/PAN discovery in S3</span><div class="tip"><strong>Amazon Macie</strong>ML-based sensitive data discovery. Custom identifiers for PHI patterns (SSN, MRN, NPI). PAN detection for PCI. Automated sensitive data discovery. Findings → Security Hub.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER -->
+<div class="main-col">
+  <div class="inet-box"><div class="ic">🌐</div><div class="lb">Internet · End Users · Mobile · Partners · EHR Systems · Payment Networks</div></div>
+  <div class="flow-arrow">↓</div>
+  <div class="layer">
+    <div class="layer-lbl">Edge Layer — Global (CloudFront PoPs + Shield + WAF)</div>
+    <div class="svc-row" style="justify-content:center;gap:10px">
+      <div class="svc c-net" style="min-width:130px"><span class="svc-icon">🌍</span><span class="svc-name">Route 53</span><span class="svc-tag">DNSSEC + Health Checks</span><div class="tip"><strong>Route 53</strong>DNSSEC signing. Latency-based routing. Failover to DR region. Private hosted zones (internal). Route 53 Resolver with DNS Firewall for malicious domain blocking.</div></div>
+      <div class="svc c-net" style="min-width:130px"><span class="svc-icon">⚡</span><span class="svc-name">CloudFront</span><span class="svc-tag">CDN · WAF · TLS 1.3 · OAC</span><div class="tip"><strong>CloudFront</strong>450+ PoPs globally. TLS 1.3 enforced. Origin Access Control (OAC) for S3. Origin Shield for cache hit ratio. Signed URLs/cookies. Real-time logs → Kinesis → OpenSearch. Field-Level Encryption for PII/PHI in transit.</div></div>
+      <div class="svc c-net" style="min-width:130px"><span class="svc-icon">📜</span><span class="svc-name">ACM + Private CA</span><span class="svc-tag">Public + Internal PKI</span><div class="tip"><strong>ACM + Private CA</strong><span class="pill-new">NEW</span> ACM for public TLS (auto-renewed). AWS Private CA for internal service-to-service mTLS certificates. Certificate Transparency logging. TLS 1.2 minimum enforced via CloudFront security policy.</div></div>
+    </div>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="layer">
+    <div class="layer-lbl">API &amp; Load Balancing Layer</div>
+    <div class="svc-row" style="justify-content:center;gap:10px">
+      <div class="svc c-cmp" style="min-width:130px"><span class="svc-icon">🚪</span><span class="svc-name">API Gateway</span><span class="svc-tag">REST/GraphQL/WS + throttle</span><div class="tip"><strong>API Gateway</strong>Usage plans + throttling. JWT authorizer (Cognito). Mutual TLS for partner APIs. Private VPC endpoint mode. Request validation. WAF integration. API versioning. Response caching.</div></div>
+      <div class="svc c-net" style="min-width:130px"><span class="svc-icon">⚖️</span><span class="svc-name">ALB</span><span class="svc-tag">L7 LB · mTLS · WAF</span><div class="tip"><strong>ALB</strong>Mutual TLS on listener. Path/header-based routing. Desync mitigation (defensive mode). Access logs → S3 (30-day). WAF attached. Connection draining. IPv4 + IPv6 dualstack.</div></div>
+      <div class="svc c-cmp" style="min-width:130px"><span class="svc-icon">⚡</span><span class="svc-name">Lambda</span><span class="svc-tag">VPC · Code Signing · SnapStart</span><div class="tip"><strong>Lambda</strong>VPC-attached. Code signing (enforced). Lambda Power Tuning. SnapStart for Java. Provisioned concurrency. Reserved concurrency per function. No secrets in env vars (Parameter Store/Secrets Manager).</div></div>
+      <div class="svc c-net" style="min-width:120px"><span class="svc-icon">🧱</span><span class="svc-name">Network Firewall</span><span class="svc-tag">Suricata IDS/IPS</span><div class="tip"><strong>AWS Network Firewall</strong>Stateful Suricata rules. Domain-based filtering. TLS inspection. Managed threat signatures. East-west inspection. Alert + drop modes. Logs → S3 + CloudWatch.</div></div>
+    </div>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="layer">
+    <div class="layer-lbl">Compute Layer — Private Subnets (EKS + Fargate)</div>
+    <div class="svc-row" style="justify-content:center;gap:10px">
+      <div class="svc c-cmp" style="min-width:150px"><span class="svc-icon">☸️</span><span class="svc-name">EKS Cluster</span><span class="svc-tag">Bottlerocket · Karpenter · Cilium</span><div class="tip"><strong>Amazon EKS 1.30+</strong>Private API endpoint only. Bottlerocket nodes (immutable OS). Karpenter autoscaler. IRSA for pod IAM. OPA Gatekeeper + Kyverno policies. Falco runtime. Cilium eBPF CNI. EKS Anywhere for on-prem hybrid.</div></div>
+      <div class="svc c-cmp" style="min-width:120px"><span class="svc-icon">🐳</span><span class="svc-name">Fargate</span><span class="svc-tag">Ephemeral · No node mgmt</span><div class="tip"><strong>AWS Fargate</strong>No node patching. Per-task IAM roles. Ephemeral storage encrypted at rest. ECS Fargate for batch/jobs. Fargate Spot for cost savings. CPU/memory resource limits enforced.</div></div>
+      <div class="svc c-ops" style="min-width:120px"><span class="svc-icon">📦</span><span class="svc-name">ECR</span><span class="svc-tag">Immutable · Enhanced Scan</span><div class="tip"><strong>ECR</strong>Immutable image tags. Enhanced scanning (Inspector V2). Lifecycle policies (delete untagged). KMS encryption. VPC endpoint. Cross-account via resource policy. Cosign signature verification in admission webhook.</div></div>
+      <div class="svc c-hsm" style="min-width:120px"><span class="svc-icon">🔒</span><span class="svc-name">Nitro Enclaves</span><span class="svc-tag">Isolated sensitive compute</span><div class="tip"><strong>AWS Nitro Enclaves</strong><span class="pill-new">NEW</span> Isolated compute environment. Process PHI/PAN without exposing to host. No persistent storage, no network, no SSH. Cryptographic attestation. Healthcare and PCI key use cases.</div></div>
+    </div>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="layer">
+    <div class="layer-lbl">Data Layer — Isolated Subnets + Lake Formation</div>
+    <div class="svc-row" style="justify-content:center;gap:10px">
+      <div class="svc c-dat" style="min-width:130px"><span class="svc-icon">🐘</span><span class="svc-name">Aurora RDS</span><span class="svc-tag">Multi-AZ · Proxy · FGAC</span><div class="tip"><strong>Aurora PostgreSQL</strong>6-way replication. RDS Proxy (connection pooling). Performance Insights. Advanced Auditing (for PCI). Automated backups (35d). CMK encryption. IAM database auth. TLS forced. Parameter groups hardened.</div></div>
+      <div class="svc c-dat" style="min-width:120px"><span class="svc-icon">⚡</span><span class="svc-name">ElastiCache</span><span class="svc-tag">Redis 7 · TLS · AUTH</span><div class="tip"><strong>ElastiCache Redis</strong>Cluster mode. In-transit + at-rest encryption. Redis AUTH + ACL. Multi-AZ failover. No PHI/PAN cached without TTL policy. CloudWatch anomaly detection.</div></div>
+      <div class="svc c-dat" style="min-width:120px"><span class="svc-icon">🔍</span><span class="svc-name">OpenSearch</span><span class="svc-tag">SIEM + FGAC + UltraWarm</span><div class="tip"><strong>OpenSearch Service</strong>Fine-grained access control. Role-based index access. UltraWarm for cold log storage. Dedicated master nodes (3). Node-to-node encryption. SAML auth. No PHI in log payloads.</div></div>
+      <div class="svc c-dat" style="min-width:110px"><span class="svc-icon">⚡</span><span class="svc-name">DynamoDB</span><span class="svc-tag">Global Tables · DAX · PITR</span><div class="tip"><strong>DynamoDB</strong>Global Tables (multi-region). DAX caching. PITR (35d). KMS CMK. VPC endpoint. IAM condition keys for item-level access. Export to S3 for analytics.</div></div>
+      <div class="svc c-dat" style="min-width:110px"><span class="svc-icon">🛡️</span><span class="svc-name">Lake Formation</span><span class="svc-tag">Data lake FGAC</span><div class="tip"><strong>AWS Lake Formation</strong><span class="pill-new">NEW</span> Column-level, row-level, cell-level security on S3 data lake. Data mesh governance. Tag-based access control. Audited access to sensitive datasets. PHI/PAN access control for analytics.</div></div>
+    </div>
+  </div>
+  <div class="flow-arrow">↓</div>
+  <div class="layer">
+    <div class="layer-lbl">Storage · Messaging · Events</div>
+    <div class="svc-row" style="justify-content:center;gap:10px">
+      <div class="svc c-dat" style="min-width:120px"><span class="svc-icon">🪣</span><span class="svc-name">S3</span><span class="svc-tag">Object Lock · Versioning · MFA Delete</span><div class="tip"><strong>S3</strong>Object Lock Compliance mode (audit logs). MFA Delete for critical buckets. SSE-KMS mandatory. Block public access (account-level SCP). Macie scanning. Access Points for app-level granular access. S3 Access Logs. Replication to DR region.</div></div>
+      <div class="svc c-cmp" style="min-width:110px"><span class="svc-icon">📨</span><span class="svc-name">SQS + SNS + MSK</span><span class="svc-tag">Encrypted · FIFO · DLQ</span><div class="tip"><strong>SQS + SNS + MSK</strong>SQS FIFO for ordered processing. SSE-KMS. VPC endpoint access. Dead-letter queues. Amazon MSK (Kafka) for streaming — TLS + ACL. SNS fan-out.</div></div>
+      <div class="svc c-cmp" style="min-width:110px"><span class="svc-icon">🎯</span><span class="svc-name">EventBridge</span><span class="svc-tag">Event bus · Schema · Pipe</span><div class="tip"><strong>EventBridge</strong>Central event bus. Security finding → Lambda auto-remediation. EventBridge Pipes for point-to-point. Schema registry. Cross-account delivery via resource policy.</div></div>
+      <div class="svc c-cmp" style="min-width:110px"><span class="svc-icon">🔄</span><span class="svc-name">Step Functions</span><span class="svc-tag">Audit workflows · IR playbooks</span><div class="tip"><strong>Step Functions</strong>IR playbook automation. PHI de-identification workflows. Approval workflows for privileged access. Express/Standard workflows. CloudTrail logs every state transition.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT SIDEBAR -->
+<div class="side-col">
+  <div class="card">
+    <div class="card-hd" style="color:#22d3ee">Observability &amp; AIOps</div>
+    <div class="svc-row" style="flex-direction:column;gap:7px">
+      <div class="svc c-mon"><span class="svc-icon">📊</span><span class="svc-name">CloudWatch</span><span class="svc-tag">Metrics · Synthetics · RUM</span><div class="tip"><strong>CloudWatch</strong>Custom metrics via EMF. Composite alarms. Anomaly detection. Container Insights (EKS). Application Insights for .NET/Java. Synthetics canaries for endpoint monitoring. RUM for frontend. Contributor Insights for top-N analysis.</div></div>
+      <div class="svc c-mon"><span class="svc-icon">📡</span><span class="svc-name">ADOT + X-Ray</span><span class="svc-tag">OpenTelemetry · Trace maps</span><div class="tip"><strong>ADOT Collector + X-Ray</strong>Vendor-neutral telemetry. OTLP protocol. Trace sampling rules. Service graph. Cold-start analysis for Lambda. Annotation-based filtering.</div></div>
+      <div class="svc c-mon"><span class="svc-icon">📈</span><span class="svc-name">AMP + AMG</span><span class="svc-tag">Prometheus + Grafana (managed)</span><div class="tip"><strong>Amazon Managed Prometheus + Grafana</strong>IRSA scraping auth. Pre-built EKS dashboards. SAML SSO (Okta/AAD). PagerDuty/OpsGenie alerts. Grafana Oncall built-in. 150-day metrics retention.</div></div>
+      <div class="svc c-mon"><span class="svc-icon">🔔</span><span class="svc-name">PagerDuty / OpsGenie</span><span class="svc-tag">On-call · Escalation</span><div class="tip"><strong>Incident Management</strong>On-call rotation. Severity-based routing. Auto-escalation. Runbook links in alerts. Bi-directional Jira integration. Post-mortem templates.</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="color:#f87171">Audit · Compliance · Governance</div>
+    <div class="svc-row" style="flex-direction:column;gap:7px">
+      <div class="svc c-sec"><span class="svc-icon">📋</span><span class="svc-name">CloudTrail</span><span class="svc-tag">Org trail · Integrity · 7yr</span><div class="tip"><strong>CloudTrail</strong>Organization trail. All management + S3 data + Lambda data events. Log file integrity validation (SHA-256+RSA). S3 Object Lock Compliance (7 years). CloudWatch alarm on sensitive API calls.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">⚙️</span><span class="svc-name">AWS Config</span><span class="svc-tag">160+ rules · Auto-remediate</span><div class="tip"><strong>AWS Config</strong>Config aggregator (multi-account). Conformance packs: CIS v2, PCI-DSS, HIPAA, NIST. Auto-remediation via SSM Automation. Config rules for every guardrail.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">📑</span><span class="svc-name">Audit Manager</span><span class="svc-tag">HIPAA · PCI · SOX evidence</span><div class="tip"><strong>AWS Audit Manager</strong><span class="pill-new">NEW</span> Automated evidence collection. HIPAA framework. PCI-DSS framework. SOC 2 framework. Maps CloudTrail/Config evidence to controls. Pre-built assessments. Auditor-ready reports.</div></div>
+      <div class="svc c-sec"><span class="svc-icon">🔭</span><span class="svc-name">Access Analyzer</span><span class="svc-tag">Unintended access paths</span><div class="tip"><strong>IAM Access Analyzer</strong><span class="pill-new">NEW</span> Identifies resources shared outside org. Unused permissions analysis. Custom policy checks. Integration with CI/CD to block over-permissive IAM policies before deploy.</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd" style="color:#fb923c">Control Plane &amp; GitOps</div>
+    <div class="svc-row" style="flex-direction:column;gap:7px">
+      <div class="svc c-ops"><span class="svc-icon">🏗️</span><span class="svc-name">Control Tower</span><span class="svc-tag">Landing zone · Guardrails</span><div class="tip"><strong>AWS Control Tower</strong><span class="pill-new">NEW</span> Automated landing zone. 50+ preventive + detective guardrails. Account Factory for new account provisioning. Customizations via CfCT. Integrates with Service Catalog.</div></div>
+      <div class="svc c-ops"><span class="svc-icon">🔄</span><span class="svc-name">ArgoCD</span><span class="svc-tag">GitOps · App-of-Apps · RBAC</span><div class="tip"><strong>ArgoCD</strong>Pull-based deployment. Dex SSO. RBAC per team. App-of-Apps pattern. Sync policies with auto-healing. Image updater. Progressive delivery via Argo Rollouts.</div></div>
+      <div class="svc c-ops"><span class="svc-icon">🏗️</span><span class="svc-name">Terraform + Terragrunt</span><span class="svc-tag">IaC · Remote state · Sentinel</span><div class="tip"><strong>Terraform + Terragrunt</strong>S3 remote state + DynamoDB lock. Workspace per env. tfsec + Checkov in CI. OPA Conftest for policy. Sentinel policies (TFE). Drift detection via scheduled plans.</div></div>
+    </div>
+  </div>
+</div>
+</div><!-- end ov-grid -->
+
+<div class="legend">
+  <div class="leg-item"><div class="leg-dot" style="background:#b91c1c"></div>Security</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#1d4ed8"></div>Network</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#7e22ce"></div>Compute</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#15803d"></div>Data/Storage</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#0e7490"></div>Observability</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#b45309"></div>Identity/IAM</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#c2410c"></div>DevOps</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#7c3aed"></div>HSM/Enclave</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#0d9488"></div>Healthcare</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#d97706"></div>Finance</div>
+</div>
+</div><!-- end overview -->
+
+<!-- ===== TAB 2: NETWORK ===== -->
+<div id="network" class="tab-pane">
+<div class="page-title">Network &amp; VPC Architecture</div>
+<div class="page-sub">Defense-in-depth: micro-segmentation · CDE isolation · DNS Firewall · zero-trust east-west · Transit Gateway hub-spoke</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">Production VPC — 3 AZs · 5 Subnet Tiers · Network Firewall</div>
+  <div class="vpc-wrap">
+    <div class="vpc-badge">VPC 10.0.0.0/16 — us-east-1 (Primary) + us-west-2 (DR Active-Active)</div>
+    <div class="az-grid">
+      <div class="az"><div class="az-lbl">AZ us-east-1a</div>
+        <div class="sn sn-pub">Public /24 · ALB · NAT GW · NLB</div>
+        <div class="sn sn-mgmt">Mgmt /26 · SSM · Firewall endpoint</div>
+        <div class="sn sn-prv">Private /22 · EKS Nodes · Apps</div>
+        <div class="sn sn-dat">Data /24 · Aurora Primary</div>
+        <div class="sn sn-cde">CDE /26 · Payment services (PCI)</div>
+      </div>
+      <div class="az"><div class="az-lbl">AZ us-east-1b</div>
+        <div class="sn sn-pub">Public /24 · ALB · NAT GW</div>
+        <div class="sn sn-mgmt">Mgmt /26 · Network Firewall</div>
+        <div class="sn sn-prv">Private /22 · EKS Nodes · Apps</div>
+        <div class="sn sn-dat">Data /24 · Aurora Replica + RDS Proxy</div>
+        <div class="sn sn-cde">CDE /26 · PCI-isolated workloads</div>
+      </div>
+      <div class="az"><div class="az-lbl">AZ us-east-1c</div>
+        <div class="sn sn-pub">Public /24 · ALB · NAT GW</div>
+        <div class="sn sn-mgmt">Mgmt /26 · CloudHSM cluster node</div>
+        <div class="sn sn-prv">Private /22 · EKS Nodes · Apps</div>
+        <div class="sn sn-dat">Data /24 · ElastiCache · OpenSearch</div>
+        <div class="sn sn-cde">CDE /26 · Tokenization service</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="padding:10px;border:1px dashed #1a3054;border-radius:7px;font-size:.68rem;color:#64748b">
+        <strong style="color:#60a5fa">VPC Interface Endpoints:</strong> ECR API · ECR DKR · CloudWatch · Secrets Manager · KMS · STS · SSM · SSMMessages · EC2Messages · SQS · SNS · S3 (interface) · Lambda · ECS · EKS · Glue · Athena · States
+      </div>
+      <div style="padding:10px;border:1px dashed #1a3054;border-radius:7px;font-size:.68rem;color:#64748b">
+        <strong style="color:#60a5fa">VPC Gateway Endpoints:</strong> S3 (gateway, free) · DynamoDB (gateway, free) — all traffic stays within AWS backbone, no internet traversal
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="g3" style="margin-bottom:14px">
+  <div class="card">
+    <div class="card-hd">Security Groups — Least-Privilege Rules</div>
+    <div class="sc ctrl-crit"><h4>ALB Security Group</h4><p>Inbound: 443 from 0.0.0.0/0 (HTTPS only). 80 → 301 redirect only.<br>Outbound: 8080–8443 to App SG only. No other egress.</p></div>
+    <div class="sc ctrl-high"><h4>EKS Node Security Group</h4><p>Inbound: from ALB SG on app port only.<br>Node-to-node: cluster CIDR. Outbound: to Data SG, VPC endpoints only.</p></div>
+    <div class="sc ctrl-crit"><h4>CDE Security Group (PCI)</h4><p>Inbound: ONLY from Payment-Proxy SG on specific port. Outbound: Payment network IPs only (static allowlist).<br>No internet egress whatsoever.</p></div>
+    <div class="sc ctrl-med"><h4>Database Security Group</h4><p>Inbound: 5432 from App SG + RDS Proxy SG only.<br>No SSH, no 0.0.0.0/0 — ever. Outbound: none.</p></div>
+    <div class="sc ctrl-med"><h4>CloudHSM Security Group</h4><p>Inbound: 2223-2225 from App SG only.<br>Cluster members communicate on 2225. All other ports denied.</p></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Network ACLs + Flow Logs</div>
+    <div class="sc ctrl-crit"><h4>Public Subnet NACL</h4><p>Allow inbound: 443 from 0.0.0.0/0.<br>Allow ephemeral 1024-65535 return.<br>Deny: 22, 3389, 8080 explicitly (numbered rules before allow-all).</p></div>
+    <div class="sc ctrl-crit"><h4>CDE Subnet NACL (PCI Req 1)</h4><p>Explicit deny-all inbound by default. Allow ONLY payment processor IPs. Deny RFC-1918 except required App SG CIDR. Log every accepted/rejected flow.</p></div>
+    <div class="sc ctrl-high"><h4>Data Subnet NACL</h4><p>Allow from private subnet CIDR only.<br>Deny all internet-sourced traffic. No outbound to internet.</p></div>
+    <div class="sc ctrl-med"><h4>VPC Flow Logs</h4><p>ALL traffic (accepted + rejected) to CloudWatch Logs Insights. Partition to S3 for Athena queries. Retained 13 months for PCI compliance. GuardDuty analyzes automatically.</p></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">DNS Firewall + Resolver</div>
+    <div class="sc ctrl-crit"><h4>Route 53 Resolver DNS Firewall <span class="pill-new">NEW</span></h4><p>Block domains on AWS-managed threat lists. Block DNS tunneling. Custom blocklist for known C2 domains. Allow-list for approved external SaaS. Logs all DNS queries → CloudWatch.</p></div>
+    <div class="sc ctrl-high"><h4>Resolver Query Logging</h4><p>All DNS queries logged. GuardDuty analyzes DNS logs for exfiltration. Anomaly detection on unusual domain patterns. Blocked query alerts → PagerDuty.</p></div>
+    <div class="sc ctrl-high"><h4>Transit Gateway</h4><p>Hub-spoke multi-account. Prod VPC ↔ Shared Services VPC. CDE VPC isolated route table (no internet route). TGW Flow Logs. Network Manager for topology visualization.</p></div>
+    <div class="sc ctrl-med"><h4>Direct Connect + VPN</h4><p>Direct Connect for hospital/EHR on-premise integration (HIPAA). MACsec encryption on DX. Site-to-Site VPN as backup. VPN tunnel monitoring via CloudWatch.</p></div>
+  </div>
+</div>
+
+<div class="g2">
+  <div class="card">
+    <div class="card-hd">Zero Trust Network Architecture (NIST SP 800-207)</div>
+    <div style="font-size:.72rem;color:#94a3b8;line-height:1.9">
+      <div><span class="badge b-red">NEVER TRUST</span> No implicit trust based on network location</div>
+      <div><span class="badge b-grn">VERIFY ALWAYS</span> Every request authenticated + authorized</div>
+      <div style="margin-top:8px">
+        <div>🔐 Istio service mesh — mTLS between every pod pair</div>
+        <div>🔐 AuthorizationPolicy per service (explicit allow only)</div>
+        <div>🔐 IRSA — pod-level IAM, not node-level</div>
+        <div>🔐 JWT validation at API Gateway + ALB</div>
+        <div>🔐 Short-lived credentials via STS (15min session)</div>
+        <div>🔐 Device posture check for developer workstations</div>
+        <div>🔐 PAM — AWS Systems Manager Session Manager (no SSH keys)</div>
+        <div>🔐 JIT (Just-in-Time) privileged access via IAM Identity Center</div>
+        <div>🔐 Microsegmentation via Cilium NetworkPolicy</div>
+        <div>🔐 Network layer: default-deny everywhere</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Service Mesh (Istio) — East-West Security</div>
+    <div style="font-size:.72rem;color:#94a3b8;line-height:1.9">
+      <div>🕸️ Auto mTLS (PeerAuthentication: STRICT mode)</div>
+      <div>🕸️ AuthorizationPolicy: deny-all default, per-service allow</div>
+      <div>🕸️ Envoy sidecar — RBAC enforcement at proxy level</div>
+      <div>🕸️ Traffic management: canary, A/B, circuit breaker</div>
+      <div>🕸️ JWT validation via RequestAuthentication</div>
+      <div>🕸️ Istio CNI (no NET_ADMIN on pods)</div>
+      <div>🕸️ Telemetry → AMP (Prometheus) + Tempo (tracing)</div>
+      <div>🕸️ External authorization via OPA/OPAL</div>
+      <div>🕸️ Egress Gateway — all outbound through controlled point</div>
+      <div style="margin-top:6px;color:#4ade80">All PHI/PAN service comms go through Egress Gateway → logged</div>
+    </div>
+  </div>
+</div>
+</div><!-- end network -->
+
+<!-- ===== TAB 3: SECURITY ===== -->
+<div id="security" class="tab-pane">
+<div class="page-title">Security Architecture — Defense in Depth</div>
+<div class="page-sub">Preventive · Detective · Responsive · Corrective controls aligned to NIST CSF + AWS Well-Architected Security Pillar</div>
+
+<div class="g2" style="margin-bottom:14px">
+<div class="card">
+  <div class="card-hd">Preventive Controls</div>
+  <div class="sc ctrl-crit"><h4>SCPs (Service Control Policies) — Guardrails</h4><p>Deny root account usage. Deny leaving AWS Organizations. Restrict to approved regions only. Deny disabling CloudTrail/GuardDuty/Config. Deny creation of public S3/RDS. Deny IAM key creation for humans. Deny non-HTTPS API calls.</p></div>
+  <div class="sc ctrl-crit"><h4>IAM — Least Privilege + ABAC</h4><p>Zero standing privilege for humans (JIT via Identity Center). Service roles only — no user roles on workloads. Permission boundaries on developer roles (max permissions ceiling). Attribute-based access control for resource tagging. IAM Access Analyzer — block overly permissive policies in CI/CD. Quarterly access reviews.</p></div>
+  <div class="sc ctrl-high"><h4>Encryption — KMS Key Hierarchy</h4><p>Tier 1: CloudHSM custom key store for PHI/PAN master keys (FIPS 140-2 L3). Tier 2: KMS CMKs per data classification (PHI key, PCI key, general key). Tier 3: Data keys via envelope encryption. Annual rotation for all CMKs. Separate keys per environment. Key access logged in CloudTrail.</p></div>
+  <div class="sc ctrl-high"><h4>MFA — All Access Points</h4><p>FIDO2/WebAuthn (phishing-resistant) for privileged roles. TOTP for standard users. No SMS MFA for admin accounts. Hardware security keys for break-glass accounts. MFA required before any IAM Identity Center session.</p></div>
+  <div class="sc ctrl-med"><h4>Resource-Based Policies</h4><p>S3 bucket policies: require TLS + deny non-org principals. KMS key policies: restrict to specific roles. SQS/SNS: VPC endpoint condition. Lambda: deny public URLs unless authorized. Secrets Manager: VPC condition on all secrets.</p></div>
+</div>
+<div class="card">
+  <div class="card-hd">Detective &amp; Responsive Controls</div>
+  <div class="sc ctrl-crit"><h4>GuardDuty — Automated Threat Response</h4><p>EKS Runtime Monitoring (eBPF). RDS Protection (login anomalies). Malware Protection (EC2/ECS/EKS). Lambda Protection. S3 Protection. Auto-remediation: GuardDuty finding → EventBridge → Step Functions IR playbook → isolate/quarantine. Findings → Security Hub → SIEM (Splunk/OpenSearch).</p></div>
+  <div class="sc ctrl-crit"><h4>CloudTrail — Immutable Audit Record</h4><p>Organization trail in CloudTrail Lake (queryable, 7yr). Log file integrity validation. S3 Object Lock Compliance mode. CloudWatch alarms on: root login, MFA disable, SCP change, CloudTrail stop, new IAM admin, console login from new geo. Real-time alerts → PagerDuty.</p></div>
+  <div class="sc ctrl-high"><h4>Config Rules — Continuous Compliance</h4><p>Auto-remediate: unused credentials → disable. Public SG → revoke. Unencrypted RDS → alert + block. Non-compliant S3 → block public access. Config conformance packs: CIS v2 (126 rules), PCI-DSS (66 rules), HIPAA (140 rules), NIST 800-53.</p></div>
+  <div class="sc ctrl-high"><h4>Automated Remediation Playbooks</h4><p>
+    🔴 Exposed SG → EventBridge → Lambda → revoke rule + alert<br>
+    🔴 GuardDuty: EC2 compromise → isolate SG + snapshot + notify<br>
+    🔴 Macie: PHI in public S3 → block public + quarantine + alert<br>
+    🟡 Root login → SNS → PagerDuty → ticket + CISO notify<br>
+    🟡 IAM key 90d old → auto-disable + notify owner<br>
+    🟡 Unused role 90d → IAM Access Analyzer → alert for review
+  </p></div>
+  <div class="sc ctrl-med"><h4>Privilege Access Management (PAM)</h4><p>No SSH keys to any EC2/EKS node. Systems Manager Session Manager only. Sessions logged + recorded to S3. Break-glass account: sealed in AWS Secrets Manager, requires 2-person approval, logs every action. Privileged session recordings retained 1 year.</p></div>
+</div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">EKS Hardening — Complete Checklist</div>
+  <div class="g5">
+    <div><div style="font-size:.72rem;font-weight:700;color:#c084fc;margin-bottom:7px">Pod Security (Restricted)</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ PSS Restricted profile enforced</div><div>✓ Non-root UID (runAsNonRoot)</div><div>✓ Read-only rootFS</div><div>✓ No privileged containers</div><div>✓ No hostNetwork/hostPID</div><div>✓ Drop ALL capabilities</div><div>✓ Seccomp: RuntimeDefault</div><div>✓ AppArmor profiles</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#c084fc;margin-bottom:7px">Network Policies</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ Default deny-all (Cilium)</div><div>✓ Explicit allow per service</div><div>✓ Namespace isolation</div><div>✓ mTLS all pods (Istio STRICT)</div><div>✓ Egress Gateway for outbound</div><div>✓ No pod internet unless declared</div><div>✓ L7 policy via Cilium</div><div>✓ DNS policy enforcement</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#c084fc;margin-bottom:7px">Access Control</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ IRSA (pod IAM via OIDC)</div><div>✓ RBAC least-privilege</div><div>✓ No wildcard ClusterRoles</div><div>✓ OPA Gatekeeper constraints</div><div>✓ Kyverno mutation policies</div><div>✓ Audit log level: Metadata+</div><div>✓ EKS private API endpoint</div><div>✓ No public control plane</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#c084fc;margin-bottom:7px">Runtime Security</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ Falco (eBPF) runtime detection</div><div>✓ Trivy Operator (in-cluster scan)</div><div>✓ Image signing enforcement</div><div>✓ Cosign verify in admission</div><div>✓ No :latest tags allowed</div><div>✓ Distroless base images</div><div>✓ Bottlerocket node OS</div><div>✓ Node-level seccomp</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#c084fc;margin-bottom:7px">Secrets &amp; Config</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ External Secrets Operator</div><div>✓ No secrets in env vars</div><div>✓ Secrets from AWS SM / SSM</div><div>✓ Vault agent sidecar option</div><div>✓ Encrypted etcd at rest</div><div>✓ Secrets rotation automated</div><div>✓ ConfigMaps: no sensitive data</div><div>✓ Namespace-scoped secrets only</div></div></div>
+  </div>
+</div>
+
+<div class="g3">
+  <div class="card">
+    <div class="card-hd">Vulnerability Management</div>
+    <div style="font-size:.7rem;color:#94a3b8;line-height:1.9">
+      <div>🔬 Inspector V2 — EC2+ECR+Lambda continuous</div>
+      <div>🔬 EPSS + CVSS + reachability = prioritized score</div>
+      <div>🔬 Patch Manager: auto-patch critical in 24h</div>
+      <div>🔬 Bottlerocket: atomic OS updates</div>
+      <div>🔬 Dependency: Dependabot + Snyk auto-PRs</div>
+      <div>🔬 SBOM per build → tracked in S3 + DynamoDB</div>
+      <div style="margin-top:8px;font-weight:700;color:#f1f5f9">CVE SLA:</div>
+      <div><span class="badge b-red">Critical</span> 24 hours to remediate</div>
+      <div><span class="badge b-org">High</span> 7 days to remediate</div>
+      <div><span class="badge b-yel">Medium</span> 30 days</div>
+      <div><span class="badge b-blu">Low</span> 90 days</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Data Classification &amp; Protection</div>
+    <div style="font-size:.7rem;color:#94a3b8;line-height:1.9">
+      <div><span class="badge b-red">RESTRICTED</span> PHI, PAN, PII — CloudHSM CMK, Nitro Enclaves</div>
+      <div><span class="badge b-org">CONFIDENTIAL</span> Internal data — KMS CMK, TLS 1.3</div>
+      <div><span class="badge b-yel">INTERNAL</span> Operational data — KMS AWS-managed</div>
+      <div><span class="badge b-grn">PUBLIC</span> Marketing — CloudFront, public S3</div>
+      <div style="margin-top:8px">
+        <div>🔐 KMS key per classification tier</div>
+        <div>🔐 S3 object tags → automated Lake Formation policies</div>
+        <div>🔐 Macie custom identifiers per org</div>
+        <div>🔐 No RESTRICTED data in logs (log scrubbing)</div>
+        <div>🔐 Tokenization: PAN → format-preserving token</div>
+        <div>🔐 De-identification: PHI → Safe Harbor compliant</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Supply Chain Security (SLSA L3)</div>
+    <div style="font-size:.7rem;color:#94a3b8;line-height:1.9">
+      <div>📦 SLSA Level 3 build provenance</div>
+      <div>📦 Ephemeral build environments (CodeBuild)</div>
+      <div>📦 No human modification of build artifacts</div>
+      <div>📦 Cosign keyless signing (Fulcio CA)</div>
+      <div>📦 Rekor transparency log entries</div>
+      <div>📦 SBOM: Syft generates CycloneDX + SPDX</div>
+      <div>📦 Grype CVE matches SBOM before deploy</div>
+      <div>📦 Policy: block deploy if critical CVE in SBOM</div>
+      <div>📦 Dependency Review Action (GitHub)</div>
+      <div>📦 Artifact attestation in-toto format</div>
+      <div style="margin-top:6px;color:#4ade80">Admission webhook validates all signatures before pod start</div>
+    </div>
+  </div>
+</div>
+</div><!-- end security -->
+
+<!-- ===== TAB 4: CI/CD ===== -->
+<div id="cicd" class="tab-pane">
+<div class="page-title">CI/CD Security Pipeline</div>
+<div class="page-sub">Shift-left · SLSA L3 · Healthcare PHI gates · PCI compliance checks · Zero-trust artifact signing · GitOps delivery</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">11-Stage Security-First Pipeline — GitHub Actions + ArgoCD + Argo Rollouts</div>
+  <div class="pipe">
+    <div class="stage">
+      <div class="stage-hd" style="color:#f87171">💻 Dev Workstation</div>
+      <div class="gate">Pre-commit (mandatory)</div>
+      <div class="stage-item">Gitleaks secret scan</div>
+      <div class="stage-item">detect-secrets baseline</div>
+      <div class="stage-item">Prettier + ESLint</div>
+      <div class="stage-item">Conventional commits</div>
+      <div class="stage-item">Local unit tests</div>
+      <div class="gate-hc">No PHI in code/tests</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#f87171">🔍 SAST + Secrets</div>
+      <div class="gate">Block on CRITICAL</div>
+      <div class="stage-item">Semgrep (OWASP + HIPAA rules)</div>
+      <div class="stage-item">SonarQube quality gate</div>
+      <div class="stage-item">CodeQL (data flow)</div>
+      <div class="stage-item">TruffleHog (git history)</div>
+      <div class="stage-item">GitHub Secret Scanning</div>
+      <div class="stage-item">License compliance check</div>
+      <div class="gate-fin">PCI: no PAN in source</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#fb923c">📦 SCA + SBOM</div>
+      <div class="gate">Block critical CVE</div>
+      <div class="stage-item">Snyk SCA</div>
+      <div class="stage-item">OWASP Dep-Check</div>
+      <div class="stage-item">npm/pip/maven audit</div>
+      <div class="stage-item">Dependabot PRs</div>
+      <div class="stage-item">Syft SBOM gen (CycloneDX)</div>
+      <div class="stage-item">License SBOM report</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#fbbf24">🧪 Test &amp; Quality</div>
+      <div class="gate">Coverage &gt; 80%</div>
+      <div class="stage-item">Unit tests</div>
+      <div class="stage-item">Integration tests</div>
+      <div class="stage-item">Contract tests (Pact)</div>
+      <div class="stage-item">Mutation testing</div>
+      <div class="gate-hc">PHI test data: synthetic only</div>
+      <div class="gate-fin">No real PAN in tests</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#4ade80">🐳 Container Build</div>
+      <div class="stage-item">Multi-stage Dockerfile</div>
+      <div class="stage-item">Distroless / UBI base</div>
+      <div class="stage-item">Non-root USER</div>
+      <div class="stage-item">No secrets in layers</div>
+      <div class="stage-item">BuildKit cache mounts</div>
+      <div class="stage-item">Reproducible builds</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#4ade80">🔬 Container Scan</div>
+      <div class="gate">Block CRITICAL CVE</div>
+      <div class="stage-item">Trivy image + fs scan</div>
+      <div class="stage-item">Snyk Container</div>
+      <div class="stage-item">Grype SBOM match</div>
+      <div class="stage-item">ECR scan on push</div>
+      <div class="stage-item">Dockerfile lint (Hadolint)</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#4ade80">🏗️ IaC Security</div>
+      <div class="gate">Block HIGH findings</div>
+      <div class="stage-item">Checkov (Terraform)</div>
+      <div class="stage-item">tfsec analysis</div>
+      <div class="stage-item">Terrascan</div>
+      <div class="stage-item">OPA Conftest policies</div>
+      <div class="stage-item">Kube-score (manifests)</div>
+      <div class="stage-item">Access Analyzer check</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#22d3ee">⚖️ Compliance-as-Code</div>
+      <div class="gate-hc">HIPAA: PHI controls ✓</div>
+      <div class="gate-fin">PCI: CDE isolation ✓</div>
+      <div class="stage-item">Regula policy check</div>
+      <div class="stage-item">AWS Config rules validated</div>
+      <div class="stage-item">Tag compliance check</div>
+      <div class="stage-item">Encryption check (all resources)</div>
+      <div class="stage-item">Backup policy present</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#22d3ee">✍️ Sign &amp; Publish</div>
+      <div class="gate">Cosign verify required</div>
+      <div class="stage-item">Cosign keyless sign</div>
+      <div class="stage-item">Attach SBOM attestation</div>
+      <div class="stage-item">SLSA provenance attach</div>
+      <div class="stage-item">Push to ECR (immutable)</div>
+      <div class="stage-item">Rekor transparency entry</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#a78bfa">🚀 Deploy Staging</div>
+      <div class="stage-item">ArgoCD sync staging</div>
+      <div class="stage-item">Signature verify (admission)</div>
+      <div class="stage-item">Smoke + E2E tests</div>
+      <div class="stage-item">DAST: OWASP ZAP</div>
+      <div class="stage-item">Nuclei CVE templates</div>
+      <div class="stage-item">k6 performance test</div>
+    </div>
+    <div class="stage">
+      <div class="stage-hd" style="color:#f97316">🎯 Production</div>
+      <div class="gate">Manual approval (2-person)</div>
+      <div class="stage-item">ArgoCD sync prod</div>
+      <div class="stage-item">Canary: 5%→25%→50%→100%</div>
+      <div class="stage-item">Argo Rollouts analysis</div>
+      <div class="stage-item">Automated rollback on SLO breach</div>
+      <div class="stage-item">Post-deploy security baseline</div>
+      <div class="gate-hc">PHI system: CISO approval</div>
+    </div>
+  </div>
+</div>
+
+<div class="g2" style="margin-bottom:14px">
+  <div class="card">
+    <div class="card-hd">SAST + Secret Scanning Tools</div>
+    <div class="tool-row"><span class="tool-name">Semgrep</span><span class="tool-purpose">OWASP Top 10, HIPAA PHI patterns, PCI PAN patterns, 500+ rule packs</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">SonarQube Enterprise</span><span class="tool-purpose">Code quality gate (A rating required), security hotspots, 85+ security rules</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">CodeQL</span><span class="tool-purpose">Data flow / taint analysis, SQL injection, path traversal, deserialization</span><span class="badge b-org">Warn on High</span></div>
+    <div class="tool-row"><span class="tool-name">Gitleaks</span><span class="tool-purpose">Pre-commit + CI: API keys, tokens, PHI patterns, credit card numbers</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">TruffleHog v3</span><span class="tool-purpose">Full git history scan + verified secrets (live credential check)</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">GitHub Push Protection</span><span class="tool-purpose">Block push if secret pattern detected — 100+ partner integrations</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">Bandit / Gosec / ESLint</span><span class="tool-purpose">Language-specific security linters (Python / Go / JavaScript)</span><span class="badge b-org">Warning</span></div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Container · IaC · Supply Chain Security</div>
+    <div class="tool-row"><span class="tool-name">Trivy</span><span class="tool-purpose">Image, filesystem, IaC, SBOM scanning — fastest scanner</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">Snyk Container</span><span class="tool-purpose">Base image upgrade suggestions, fix PRs, license issues</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">Checkov + tfsec</span><span class="tool-purpose">Terraform/CloudFormation/K8s YAML policy checks (1000+ rules)</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">OPA Conftest</span><span class="tool-purpose">Custom policy enforcement on any config/manifest — Rego policies</span><span class="badge b-red">Blocking</span></div>
+    <div class="tool-row"><span class="tool-name">Cosign + Sigstore</span><span class="tool-purpose">Keyless container signing via Fulcio CA + Rekor transparency log</span><span class="badge b-red">Mandatory</span></div>
+    <div class="tool-row"><span class="tool-name">Syft + Grype</span><span class="tool-purpose">SBOM generation (CycloneDX/SPDX) + CVE match at deploy time</span><span class="badge b-org">Blocking on Crit</span></div>
+    <div class="tool-row"><span class="tool-name">OWASP ZAP + Nuclei</span><span class="tool-purpose">DAST active scanning on staging — API security testing</span><span class="badge b-org">Warning</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">Environment Promotion Matrix &amp; Approval Requirements</div>
+  <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.7rem">
+      <tr style="border-bottom:1px solid #1a3054">
+        <th style="text-align:left;padding:8px 12px;color:#64748b;font-weight:600;text-transform:uppercase;font-size:.62rem">Stage</th>
+        <th style="padding:8px 12px;color:#64748b;font-weight:600;text-transform:uppercase;font-size:.62rem">Trigger</th>
+        <th style="padding:8px 12px;color:#64748b;font-weight:600;text-transform:uppercase;font-size:.62rem">Approvers</th>
+        <th style="padding:8px 12px;color:#64748b;font-weight:600;text-transform:uppercase;font-size:.62rem">HIPAA Gate</th>
+        <th style="padding:8px 12px;color:#64748b;font-weight:600;text-transform:uppercase;font-size:.62rem">PCI Gate</th>
+        <th style="padding:8px 12px;color:#64748b;font-weight:600;text-transform:uppercase;font-size:.62rem">Rollback</th>
+      </tr>
+      <tr style="border-bottom:1px solid #0f1f38"><td style="padding:8px 12px;color:#e2e8f0;font-weight:600">Dev</td><td style="padding:8px 12px;color:#94a3b8">PR merge to develop</td><td style="padding:8px 12px;color:#4ade80">Auto (all CI gates pass)</td><td style="padding:8px 12px"><span class="badge b-grn">Synthetic PHI only</span></td><td style="padding:8px 12px"><span class="badge b-grn">No real PAN</span></td><td style="padding:8px 12px;color:#94a3b8">Auto (ArgoCD)</td></tr>
+      <tr style="border-bottom:1px solid #0f1f38"><td style="padding:8px 12px;color:#e2e8f0;font-weight:600">Staging</td><td style="padding:8px 12px;color:#94a3b8">PR merge to main</td><td style="padding:8px 12px;color:#fbbf24">Tech Lead approval</td><td style="padding:8px 12px"><span class="badge b-teal">De-identified PHI</span></td><td style="padding:8px 12px"><span class="badge b-yel">Tokenized PAN</span></td><td style="padding:8px 12px;color:#94a3b8">Auto on test fail</td></tr>
+      <tr style="border-bottom:1px solid #0f1f38"><td style="padding:8px 12px;color:#e2e8f0;font-weight:600">Production (standard)</td><td style="padding:8px 12px;color:#94a3b8">Release tag</td><td style="padding:8px 12px;color:#fb923c">2x engineers + PM</td><td style="padding:8px 12px"><span class="badge b-teal">PHI control verified</span></td><td style="padding:8px 12px"><span class="badge b-gold">CDE gate passed</span></td><td style="padding:8px 12px;color:#94a3b8">1-click rollback</td></tr>
+      <tr style="border-bottom:1px solid #0f1f38"><td style="padding:8px 12px;color:#f87171;font-weight:600">Production (PHI system)</td><td style="padding:8px 12px;color:#94a3b8">Manual trigger only</td><td style="padding:8px 12px;color:#f87171">Eng Lead + CISO + Compliance</td><td style="padding:8px 12px"><span class="badge b-red">Full HIPAA audit trail</span></td><td style="padding:8px 12px"><span class="badge b-red">QSA sign-off required</span></td><td style="padding:8px 12px;color:#f87171">Immediate auto-rollback</td></tr>
+      <tr><td style="padding:8px 12px;color:#f87171;font-weight:600">Production (CDE system)</td><td style="padding:8px 12px;color:#94a3b8">Change window only</td><td style="padding:8px 12px;color:#f87171">Eng Lead + CISO + QSA</td><td style="padding:8px 12px"><span class="badge b-teal">N/A</span></td><td style="padding:8px 12px"><span class="badge b-red">PCI change log entry</span></td><td style="padding:8px 12px;color:#f87171">Automated + paged</td></tr>
+    </table>
+  </div>
+</div>
+</div><!-- end cicd -->
+
+<!-- ===== TAB 5: DEVOPS ===== -->
+<div id="devops" class="tab-pane">
+<div class="page-title">DevOps &amp; Platform Engineering Stack</div>
+<div class="page-sub">Production-grade toolchain — Infrastructure · Kubernetes · Observability · Security Runtime · Data &amp; Backup</div>
+
+<div class="tool-cat">
+  <div class="tool-cat-hd" style="color:#fb923c">🏗️ Infrastructure as Code</div>
+  <div class="tool-grid">
+    <div class="tc"><span class="tn">Terraform</span><span class="tu">Cloud agnostic IaC. S3 remote state + DynamoDB lock. Module registry.</span></div>
+    <div class="tc"><span class="tn">Terragrunt</span><span class="tu">DRY Terraform. Multi-env hierarchy. run_all commands. Dependency graph.</span></div>
+    <div class="tc"><span class="tn">Helm 3</span><span class="tu">K8s packages. OCI registry (ECR). Signed charts. Values per env.</span></div>
+    <div class="tc"><span class="tn">Kustomize</span><span class="tu">Overlay-based K8s config. No templating. Strategic merge patches.</span></div>
+    <div class="tc"><span class="tn">AWS CDK</span><span class="tu">TypeScript/Python IaC. Higher-level constructs. L3 patterns.</span></div>
+    <div class="tc"><span class="tn">CloudFormation Guard</span><span class="tu">Policy-as-code for CFN templates. Guard rules in CI pipeline.</span></div>
+    <div class="tc"><span class="tn">Control Tower CfCT</span><span class="tu">Customizations for Control Tower. Account vending machine. Guardrails.</span></div>
+    <div class="tc"><span class="tn">Service Catalog</span><span class="tu">Approved product catalog. Self-service provisioning within guardrails.</span></div>
+  </div>
+</div>
+
+<div class="tool-cat">
+  <div class="tool-cat-hd" style="color:#c084fc">☸️ Kubernetes Platform</div>
+  <div class="tool-grid">
+    <div class="tc"><span class="tn">EKS 1.30+</span><span class="tu">Managed control plane. Private API endpoint. Bottlerocket nodes.</span></div>
+    <div class="tc"><span class="tn">Karpenter</span><span class="tu">Node autoscaler. Spot + On-demand. Consolidation. Fast &lt;60s.</span></div>
+    <div class="tc"><span class="tn">ArgoCD</span><span class="tu">GitOps CD. App-of-Apps. Dex SSO. RBAC. Image Updater.</span></div>
+    <div class="tc"><span class="tn">Argo Rollouts</span><span class="tu">Canary / blue-green. Metric analysis gates. Automatic rollback.</span></div>
+    <div class="tc"><span class="tn">Istio 1.22+</span><span class="tu">Service mesh. mTLS STRICT. AuthorizationPolicy. Ambient mode option.</span></div>
+    <div class="tc"><span class="tn">Cilium</span><span class="tu">eBPF CNI. L7 NetworkPolicy. Hubble UI observability. WireGuard encrypt.</span></div>
+    <div class="tc"><span class="tn">cert-manager</span><span class="tu">Auto TLS. ACM PCA integration. Let's Encrypt. Certificate rotation.</span></div>
+    <div class="tc"><span class="tn">External Secrets</span><span class="tu">Sync from AWS SM → K8s Secrets. Automatic refresh on rotation.</span></div>
+    <div class="tc"><span class="tn">AWS LB Controller</span><span class="tu">NLB/ALB from K8s Ingress. IP mode. mTLS passthrough.</span></div>
+    <div class="tc"><span class="tn">KEDA</span><span class="tu">Event-driven autoscaling. SQS depth, Kafka lag, Prometheus metrics.</span></div>
+    <div class="tc"><span class="tn">Velero</span><span class="tu">K8s backup + restore. DR across regions. VolumeSnapshot.</span></div>
+    <div class="tc"><span class="tn">OPA Gatekeeper</span><span class="tu">Policy-as-code admission. ConstraintTemplates. Audit mode.</span></div>
+    <div class="tc"><span class="tn">Kyverno</span><span class="tu">K8s native policies. Mutation. Generation. Image verification.</span></div>
+    <div class="tc"><span class="tn">VPA</span><span class="tu">Vertical Pod Autoscaler. Right-size recommendations. Off mode default.</span></div>
+    <div class="tc"><span class="tn">Goldilocks</span><span class="tu">VPA-based resource request recommendations dashboard.</span></div>
+    <div class="tc"><span class="tn">Crossplane</span><span class="tu">Provision AWS resources from K8s. Compositions. Managed resources.</span></div>
+  </div>
+</div>
+
+<div class="tool-cat">
+  <div class="tool-cat-hd" style="color:#22d3ee">📊 Observability Stack (OpenTelemetry Native)</div>
+  <div class="tool-grid">
+    <div class="tc"><span class="tn">ADOT Collector</span><span class="tu">OpenTelemetry collector. OTLP → AMP + X-Ray + CW. DaemonSet.</span></div>
+    <div class="tc"><span class="tn">Amazon Managed Prometheus</span><span class="tu">Serverless Prometheus. IRSA scraping. 150d retention. HA.</span></div>
+    <div class="tc"><span class="tn">Amazon Managed Grafana</span><span class="tu">SAML SSO. Pre-built EKS dashboards. Oncall. Alerting.</span></div>
+    <div class="tc"><span class="tn">AWS X-Ray</span><span class="tu">Distributed tracing. Service map. Cold-start analysis. Annotations.</span></div>
+    <div class="tc"><span class="tn">Loki</span><span class="tu">Log aggregation. S3 backend. LogQL. Grafana native. Cheap at scale.</span></div>
+    <div class="tc"><span class="tn">Tempo</span><span class="tu">Distributed tracing. S3 backend. TraceQL. Grafana native.</span></div>
+    <div class="tc"><span class="tn">FluentBit</span><span class="tu">Log shipper DaemonSet. Parser + filter plugins. Minimal overhead.</span></div>
+    <div class="tc"><span class="tn">CloudWatch</span><span class="tu">Metrics, Logs, Synthetics, RUM, Application Insights, Contributor Insights.</span></div>
+    <div class="tc"><span class="tn">PagerDuty</span><span class="tu">On-call. Severity-based routing. Escalation. Runbook links. Status page.</span></div>
+    <div class="tc"><span class="tn">Statuspage</span><span class="tu">Public and internal status pages. Incident communication. Maintenance windows.</span></div>
+  </div>
+</div>
+
+<div class="g2">
+  <div class="tool-cat">
+    <div class="tool-cat-hd" style="color:#f87171">🔒 Security Runtime Tools</div>
+    <div class="tool-grid">
+      <div class="tc"><span class="tn">Falco</span><span class="tu">K8s runtime security. eBPF probes. Custom rules. Falco Sidekick alerts.</span></div>
+      <div class="tc"><span class="tn">Trivy Operator</span><span class="tu">In-cluster continuous scanning. VulnerabilityReport CRDs. Policy.</span></div>
+      <div class="tc"><span class="tn">CloudHSM Cluster</span><span class="tu">FIPS 140-2 L3. 3-node HA cluster. Custom KMS key store. PKI.</span></div>
+      <div class="tc"><span class="tn">Vault (HashiCorp)</span><span class="tu">Dynamic secrets. PKI CA. AWS auth. Lease TTL. Audit log.</span></div>
+      <div class="tc"><span class="tn">External Secrets</span><span class="tu">AWS SM + SSM + Vault → K8s Secrets. Refresh on rotation.</span></div>
+      <div class="tc"><span class="tn">Prisma Cloud</span><span class="tu">CNAPP. CSPM + CWPP. Compliance. Runtime protection.</span></div>
+      <div class="tc"><span class="tn">Wiz / Orca</span><span class="tu">Agentless cloud security. Full attack path analysis. Risk prioritization.</span></div>
+      <div class="tc"><span class="tn">AWS Network Firewall</span><span class="tu">Suricata IDS/IPS. Managed signatures. TLS inspection. Domain filtering.</span></div>
+    </div>
+  </div>
+  <div class="tool-cat">
+    <div class="tool-cat-hd" style="color:#4ade80">💾 Data, Backup &amp; DR</div>
+    <div class="tool-grid">
+      <div class="tc"><span class="tn">AWS Backup</span><span class="tu">Centralized. Cross-region. Vault Lock (WORM). Tag-based policies.</span></div>
+      <div class="tc"><span class="tn">Velero</span><span class="tu">K8s PV backup to S3. Namespace restore. DR runbooks.</span></div>
+      <div class="tc"><span class="tn">Aurora Global DB</span><span class="tu">Multi-region. &lt;1s RPO. Managed failover &lt;1min RTO.</span></div>
+      <div class="tc"><span class="tn">S3 CRR</span><span class="tu">Cross-region replication to DR. Versioning. Object Lock preserved.</span></div>
+      <div class="tc"><span class="tn">DynamoDB Global Tables</span><span class="tu">Multi-region active-active. Sub-second replication. PITR 35d.</span></div>
+      <div class="tc"><span class="tn">DLM</span><span class="tu">Data Lifecycle Manager. EBS snapshot schedules. Retention policies.</span></div>
+      <div class="tc"><span class="tn">RDS Snapshots</span><span class="tu">Automated (35d). Manual long-term. Cross-region copy. Encrypted.</span></div>
+      <div class="tc"><span class="tn">Elastic DR</span><span class="tu">AWS Elastic Disaster Recovery. Continuous replication. Sub-minute RPO.</span></div>
+    </div>
+  </div>
+</div>
+</div><!-- end devops -->
+
+<!-- ===== TAB 6: HEALTHCARE / HIPAA ===== -->
+<div id="healthcare" class="tab-pane">
+<div class="page-title">Healthcare Architecture — HIPAA / HITECH Compliance</div>
+<div class="page-sub">Protected Health Information (PHI/ePHI) — §164.308 Administrative · §164.310 Physical · §164.312 Technical Safeguards · HITECH Breach Notification</div>
+
+<div class="banner banner-hc">
+  <span>🏥</span>
+  <span><strong>HIPAA-Eligible AWS Services used throughout:</strong> EKS · EC2 · RDS · S3 · Lambda · Cognito · CloudHSM · KMS · Secrets Manager · CloudTrail · CloudWatch · GuardDuty · Macie · Inspector · Config · Audit Manager · SQS · SNS · ACM · Shield · WAF · HealthLake · Direct Connect · SSM · Step Functions · EventBridge</span>
+</div>
+
+<!-- PHI Data Flow -->
+<div class="card card-hc" style="margin-bottom:14px">
+  <div class="card-hd card-hd-hc">ePHI Data Flow — End-to-End Protection</div>
+  <div style="overflow-x:auto;padding:8px 0">
+    <div style="display:flex;align-items:center;gap:4px;min-width:900px">
+      <div class="phi-box">Patient / EHR<br><small>FHIR R4 API</small></div>
+      <div class="phi-arrow">→</div>
+      <div class="phi-box">CloudFront<br><small>TLS 1.3 · WAF · FLE</small></div>
+      <div class="phi-arrow">→</div>
+      <div class="phi-box">API Gateway<br><small>SMART on FHIR OAuth2</small></div>
+      <div class="phi-arrow">→</div>
+      <div class="phi-box">PHI Proxy Layer<br><small>De-ID · Validation</small></div>
+      <div class="phi-arrow">→</div>
+      <div class="phi-box">HealthLake / Aurora<br><small>SSE-KMS (PHI CMK)</small></div>
+      <div class="phi-arrow">→</div>
+      <div class="phi-box">PHI Audit Log<br><small>CloudTrail + Custom</small></div>
+      <div class="phi-arrow">→</div>
+      <div class="phi-box">S3 Object Lock<br><small>6-year retention</small></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px;min-width:900px;margin-top:10px">
+      <div class="phi-box phi-red">Unauthorized<br><small>Access attempt</small></div>
+      <div class="phi-arrow" style="color:#b91c1c">→</div>
+      <div class="phi-box phi-red">GuardDuty<br><small>Anomaly detection</small></div>
+      <div class="phi-arrow" style="color:#b91c1c">→</div>
+      <div class="phi-box phi-red">EventBridge<br><small>IR trigger</small></div>
+      <div class="phi-arrow" style="color:#b91c1c">→</div>
+      <div class="phi-box phi-red">Step Functions<br><small>IR Playbook</small></div>
+      <div class="phi-arrow" style="color:#b91c1c">→</div>
+      <div class="phi-box phi-red">Containment<br><small>Block + alert + log</small></div>
+      <div class="phi-arrow" style="color:#b91c1c">→</div>
+      <div class="phi-box phi-red">HIPAA Breach<br><small>Notification (60d)</small></div>
+    </div>
+  </div>
+</div>
+
+<div class="g2" style="margin-bottom:14px">
+<div class="card card-hc">
+  <div class="card-hd card-hd-hc">§164.312 Technical Safeguards — AWS Implementation</div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.312(a)(1)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Access Control</div><div class="req-txt">Unique user ID: IAM Identity Center (no shared accounts). Automatic logoff: Cognito session timeout 15min idle. Emergency access: Break-glass procedure (below). Encryption/decryption: CloudHSM-backed PHI CMK.</div><div class="req-aws">→ IAM Identity Center · Cognito · CloudHSM · KMS</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.312(b)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Audit Controls</div><div class="req-txt">PHI access logged at row level (not just API call). CloudTrail data events on HealthLake + S3 + RDS. Custom audit table: who accessed which patient record, when, from where, for what clinical purpose. Immutable: S3 Object Lock + CloudTrail integrity.</div><div class="req-aws">→ CloudTrail Data Events · Custom Audit Lambda · DynamoDB Audit Table · S3 Object Lock (6yr)</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.312(c)(1)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Integrity Controls</div><div class="req-txt">ePHI must not be improperly altered. S3 checksums (SHA-256 per object). RDS automated backups + PITR. DynamoDB PITR. CloudTrail log file integrity validation. Velero K8s backup checksums.</div><div class="req-aws">→ S3 Integrity Checksums · RDS PITR · CloudTrail Validation</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.312(d)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Person / Entity Authentication</div><div class="req-txt">MFA mandatory for ALL PHI system access. FIDO2/WebAuthn for privileged users. SMART on FHIR OAuth2 for patient portal. No password-only access. Adaptive auth via Cognito Advanced Security.</div><div class="req-aws">→ Cognito · IAM Identity Center · FIDO2 · SMART on FHIR</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.312(e)(1)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Transmission Security</div><div class="req-txt">TLS 1.3 minimum on all ePHI transport. CloudFront Field-Level Encryption for PHI fields in HTTP payloads. Istio mTLS for service-to-service. Direct Connect MACsec for hospital-to-cloud links. No ePHI in URL parameters.</div><div class="req-aws">→ CloudFront FLE · TLS 1.3 · Istio mTLS · Direct Connect MACsec</div></div></div>
+</div>
+<div class="card card-hc">
+  <div class="card-hd card-hd-hc">§164.308 Administrative Safeguards — Automation</div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.308(a)(1)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Risk Analysis &amp; Management</div><div class="req-txt">Annual automated risk assessment via AWS Audit Manager HIPAA framework. Continuous risk scoring: GuardDuty + Security Hub + Inspector scores feed into risk dashboard. Config conformance pack tracks 140 HIPAA rules. Risk register maintained in Audit Manager.</div><div class="req-aws">→ Audit Manager (HIPAA) · Security Hub · GuardDuty · Config</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.308(a)(3)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Workforce Authorization</div><div class="req-txt">JIT access via IAM Identity Center (no standing privilege). Minimum necessary: IAM policies scoped to patient population (ABAC tags for care team). Access reviews quarterly via Access Analyzer. Termination: automated SCP-enforced deprovisioning in 4h.</div><div class="req-aws">→ IAM Identity Center · ABAC · Access Analyzer · SCPs</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.308(a)(5)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Security Awareness Training</div><div class="req-txt">Annual HIPAA training tracked in LMS (mandatory before IAM access). Phishing simulation quarterly (KnowBe4 integration). Security champions program. Training completion checked by IAM policy condition (tag: trained=current-year).</div><div class="req-aws">→ IAM Condition Keys · Systems Manager · EventBridge</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.308(a)(6)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Security Incident Procedures</div><div class="req-txt">GuardDuty finding → EventBridge → Step Functions IR playbook (automated). Breach determination: &lt;24h investigation via Detective. HIPAA breach: notify HHS within 60 days. If 500+ individuals: notify media + HHS simultaneously.</div><div class="req-aws">→ GuardDuty · EventBridge · Step Functions · Detective</div></div></div>
+  <div class="req-row"><div class="req-num req-num-hc">§164.308(a)(7)</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Contingency Plan</div><div class="req-txt">Aurora Global DB (RPO &lt;1s, RTO &lt;1min). S3 CRR to DR region. HealthLake cross-region backup. Tested quarterly. Data backup plan documented. Disaster recovery plan: run mode (active-active us-east-1 + us-west-2). Emergency access procedure: break-glass below.</div><div class="req-aws">→ Aurora Global DB · S3 CRR · AWS Backup · Elastic DR</div></div></div>
+</div>
+</div>
+
+<div class="g3" style="margin-bottom:14px">
+  <div class="card card-hc">
+    <div class="card-hd card-hd-hc">AWS HealthLake — FHIR R4 Data Store</div>
+    <div class="sc ctrl-hc"><h4>FHIR R4 Native Storage</h4><p>HealthLake stores FHIR resources natively. Patient, Observation, Condition, MedicationRequest, Encounter etc. FHIR search API. Bulk export to S3 for analytics. Versioned resources (immutable history).</p></div>
+    <div class="sc ctrl-hc"><h4>Access Control — SMART on FHIR</h4><p>OAuth2 scopes per resource type (patient/Patient.read). Launch context (EHR launch, standalone). Cognito as SMART auth server. Scope narrowing: clinician sees their patients only (ABAC). Patient portal: sees own record only.</p></div>
+    <div class="sc ctrl-hc"><h4>Analytics — De-identified Data</h4><p>HealthLake → de-identification → S3 Data Lake. Lake Formation governs de-identified dataset access. Researchers: read-only, de-identified only, no direct PHI access. Audit every query in CloudTrail.</p></div>
+    <div class="sc ctrl-hc"><h4>NLP — Comprehend Medical</h4><p>Extract PHI entities from unstructured clinical notes. De-identify notes for research pipeline. Map to ICD-10, RxNorm, SNOMED CT. Detect Protected Health Information before downstream processing.</p></div>
+  </div>
+  <div class="card card-hc">
+    <div class="card-hd card-hd-hc">PHI De-Identification &amp; Consent</div>
+    <div class="sc ctrl-hc"><h4>Safe Harbor De-identification (§164.514(b))</h4><p>Remove all 18 PHI identifiers (name, DOB, SSN, MRN, ZIP, dates, phone etc.). Lambda de-identification function with Comprehend Medical. Output stored separately in de-ID S3 bucket (different CMK). Validation: re-identification risk &lt;0.04.</p></div>
+    <div class="sc ctrl-hc"><h4>Expert Determination Method</h4><p>Statistical expert signs off on de-identification method. Very small cell suppression (&lt;5 patients). Generalization of quasi-identifiers. Documented in Audit Manager.</p></div>
+    <div class="sc ctrl-hc"><h4>Consent Management</h4><p>Patient consent stored in DynamoDB (immutable append-only). Consent types: treatment, research, marketing (separate). FHIR Consent resource in HealthLake. Consent checked at API Gateway via Lambda authorizer before every PHI access. Revocation propagated within 1h.</p></div>
+    <div class="sc ctrl-hc"><h4>Minimum Necessary Standard</h4><p>IAM ABAC: care team member → see own patients only. Role-based FHIR resource scoping. Audit log flags access outside normal scope. Anomaly detection: Clinician accessing 100+ records/day → GuardDuty alert.</p></div>
+  </div>
+  <div class="card card-hc">
+    <div class="card-hd card-hd-hc">Break-Glass &amp; Emergency Access</div>
+    <div class="sc ctrl-crit"><h4>Break-Glass Procedure</h4><p>Emergency admin access sealed in Secrets Manager. Requires approval from 2 designated officers via Slack + PagerDuty. Time-limited: 4-hour session max. All actions recorded: CloudTrail + Session Manager session recording to S3.</p></div>
+    <div class="sc ctrl-crit"><h4>Break-Glass Audit Trail</h4><p>Separate CloudWatch alarm on break-glass role assumption. CISO + Compliance + Legal notified immediately. Post-incident review required within 24h. Evidence stored in Audit Manager for audit review.</p></div>
+    <div class="sc ctrl-hc"><h4>PHI Key Management (CloudHSM)</h4><p>PHI master key: CloudHSM cluster (FIPS 140-2 L3). KMS custom key store backed by CloudHSM. Key custodians: 2 named officers (split knowledge). Annual key ceremony documented. Key access: logged in CloudTrail + CloudHSM audit log.</p></div>
+    <div class="sc ctrl-hc"><h4>BAA — Business Associate Agreements</h4><p>Signed BAA with AWS (aws.amazon.com/compliance/hipaa-eligible-services). All third-party vendors accessing PHI must sign BAA before integration. BAA registry in Audit Manager. Annual vendor review. Terminate vendor access immediately upon BAA expiry.</p></div>
+  </div>
+</div>
+
+<div class="card card-hc">
+  <div class="card-hd card-hd-hc">HIPAA Compliance Score — AWS Config Rules Mapped</div>
+  <div class="g4">
+    <div><div style="font-size:.72rem;font-weight:700;color:#2dd4bf;margin-bottom:8px">Access Controls ✓</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ MFA on all PHI access</div><div>✓ Unique user IDs (no shared)</div><div>✓ Auto logoff (15min idle)</div><div>✓ SMART on FHIR scopes</div><div>✓ JIT access (no standing)</div><div>✓ Quarterly access reviews</div><div>✓ Workforce deprovisioning &lt;4h</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#2dd4bf;margin-bottom:8px">Audit &amp; Logging ✓</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ Patient-level audit logs</div><div>✓ CloudTrail data events</div><div>✓ Immutable audit (Object Lock)</div><div>✓ 6-year log retention</div><div>✓ Log integrity validation</div><div>✓ Access Analyzer reports</div><div>✓ Audit Manager HIPAA framework</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#2dd4bf;margin-bottom:8px">Encryption ✓</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ CloudHSM PHI master key</div><div>✓ SSE-KMS (PHI CMK) on S3/RDS</div><div>✓ TLS 1.3 in transit</div><div>✓ CloudFront Field-Level Encryption</div><div>✓ Istio mTLS (east-west)</div><div>✓ Direct Connect MACsec</div><div>✓ Key rotation + ceremony docs</div></div></div>
+    <div><div style="font-size:.72rem;font-weight:700;color:#2dd4bf;margin-bottom:8px">Contingency Plan ✓</div><div style="font-size:.67rem;color:#94a3b8;line-height:1.8"><div>✓ Aurora Global DB (&lt;1s RPO)</div><div>✓ HealthLake cross-region backup</div><div>✓ Tested quarterly (GameDay)</div><div>✓ RTO &lt;1 hour (tier 1 systems)</div><div>✓ Break-glass documented</div><div>✓ Emergency access procedure</div><div>✓ DR runbooks in Systems Manager</div></div></div>
+  </div>
+</div>
+</div><!-- end healthcare -->
+
+<!-- ===== TAB 7: FINANCE / PCI-DSS ===== -->
+<div id="finance" class="tab-pane">
+<div class="page-title">Finance Architecture — PCI-DSS v4.0 · SOX ITGC · GLBA</div>
+<div class="page-sub">Cardholder Data Environment isolation · CloudHSM key custodianship · PAN tokenization · SOX separation of duties · Fraud detection</div>
+
+<div class="banner banner-fin">
+  <span>💳</span>
+  <span><strong>Financial Compliance Stack:</strong> PCI-DSS v4.0 (12 Requirements) · SOX IT General Controls (ITGC) · GLBA Safeguards Rule · BSA/AML · Dodd-Frank · ISO 27001 · SOC 2 Type II · NIST CSF · FFIEC Cybersecurity Assessment</span>
+</div>
+
+<!-- CDE Architecture -->
+<div class="card card-fin" style="margin-bottom:14px">
+  <div class="card-hd card-hd-fin">Cardholder Data Environment (CDE) — Isolated Architecture (PCI Req 1 &amp; 4)</div>
+  <div class="pci-zone">
+    <div class="pci-zone-lbl">PCI CDE BOUNDARY — Strict Network Isolation</div>
+    <div class="g3">
+      <div>
+        <div style="font-size:.72rem;font-weight:700;color:#fbbf24;margin-bottom:8px">CDE Network (10.1.0.0/24)</div>
+        <div class="sn sn-cde" style="margin-bottom:6px">CDE Subnet /26 · AZ-1a<br><small>Tokenization Service · CloudHSM</small></div>
+        <div class="sn sn-cde" style="margin-bottom:6px">CDE Subnet /26 · AZ-1b<br><small>Payment Processor Proxy</small></div>
+        <div class="sn sn-cde">CDE Subnet /26 · AZ-1c<br><small>Audit Log Service</small></div>
+        <div style="margin-top:8px;font-size:.65rem;color:#f87171">⚠ No internet egress from CDE subnets. Outbound only to payment processor IPs on allowlist. All traffic logged + inspected.</div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;font-weight:700;color:#fbbf24;margin-bottom:8px">CDE Security Controls</div>
+        <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+          <div>🔐 CloudHSM: PAN encryption keys (FIPS 140-2 L3)</div>
+          <div>🔐 Format-preserving encryption (FPE) for PAN</div>
+          <div>🔐 Tokenization: PAN → surrogate token (Vault)</div>
+          <div>🔐 No PAN stored after authorization</div>
+          <div>🔐 Network Firewall: CDE perimeter IDS/IPS</div>
+          <div>🔐 Security Group: allowlist only (no 0.0.0.0/0)</div>
+          <div>🔐 NACL: explicit deny-all except payment IPs</div>
+          <div>🔐 VPC Peering: CDE ↔ App (one-way)</div>
+          <div>🔐 No developer SSH to CDE (SSM only)</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.72rem;font-weight:700;color:#fbbf24;margin-bottom:8px">PAN Lifecycle (Req 3)</div>
+        <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+          <div>1️⃣ PAN enters via TLS 1.3 + CloudFront FLE</div>
+          <div>2️⃣ Tokenized at API Gateway (pre-logging)</div>
+          <div>3️⃣ Token stored in app DB (not PAN)</div>
+          <div>4️⃣ PAN → CloudHSM for encryption</div>
+          <div>5️⃣ Encrypted PAN → HSM-secured vault only</div>
+          <div>6️⃣ PAN never in logs, never in memory dump</div>
+          <div>7️⃣ P2PE for card-present transactions</div>
+          <div>8️⃣ Full PAN masked: display only last 4</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="g2" style="margin-bottom:14px">
+<div class="card card-fin">
+  <div class="card-hd card-hd-fin">PCI-DSS v4.0 Requirements → AWS Controls</div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 1</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Network Security Controls</div><div class="req-txt">CDE VPC with isolated subnets. Security Groups: deny-all default. NACLs: explicit allow payment IPs only. AWS Network Firewall: stateful packet inspection. Quarterly firewall rule review. Flow logs: all CDE traffic.</div><div class="req-aws">→ VPC · Security Groups · NACLs · Network Firewall · VPC Flow Logs</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 2</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Secure Configurations</div><div class="req-txt">CIS Benchmark Level 2 conformance pack. Bottlerocket nodes (minimal attack surface). No default passwords. Config rules: no default VPC used, no public S3, encryption enforced. SSM State Manager for configuration baseline.</div><div class="req-aws">→ Config (CIS Pack) · Systems Manager · Bottlerocket</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 3</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Protect Stored Account Data</div><div class="req-txt">No PAN stored post-auth. Tokenization (Vault FPE). CloudHSM for cryptographic operations. Format-preserving encryption. Macie scans for PAN patterns in S3. No PAN in logs (Semgrep CI check + Falco runtime check). Annual data retention review.</div><div class="req-aws">→ CloudHSM · Vault · KMS · Macie · Falco</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 4</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Cryptography in Transit</div><div class="req-txt">TLS 1.3 minimum (TLS 1.2 with approved cipher suites only). CloudFront: TLSv1.3_2021 security policy. ALB: ELBSecurityPolicy-TLS13-1-2. Istio mTLS: STRICT mode. No PAN over HTTP. Certificate pinning for mobile apps. ACM auto-renewal.</div><div class="req-aws">→ CloudFront · ALB · ACM · Istio · Private CA</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 5</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Anti-Malware</div><div class="req-txt">GuardDuty Malware Protection (EC2/ECS/EKS). Amazon Inspector continuous scanning. Falco runtime: detect unexpected binaries. Bottlerocket OS: verified image hashes. ECR: scan all images before deploy. No unsigned images in CDE.</div><div class="req-aws">→ GuardDuty Malware · Inspector · Falco · Bottlerocket</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 6</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Secure Software Development</div><div class="req-txt">SAST (Semgrep, SonarQube, CodeQL). SCA (Snyk, OWASP Dep-Check). DAST (OWASP ZAP). Secure SDLC training mandatory. Security peer review for CDE code changes. No direct prod access for developers. Change management: 2-person approval + change log.</div><div class="req-aws">→ CI/CD Pipeline (see CI/CD tab) · CodeGuru · SonarQube</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 7</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Restrict Access to Cardholder Data</div><div class="req-txt">Business need to know only. ABAC: role + team-based IAM conditions. No developer access to CDE prod data. DBA access: JIT via Identity Center, 4h max session. Quarterly access recertification. IAM Access Analyzer: alert on new CDE access paths.</div><div class="req-aws">→ IAM Identity Center · ABAC · Access Analyzer · Config</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 8</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Authentication &amp; Identity</div><div class="req-txt">MFA for all CDE access (FIDO2 for privileged). Unique user IDs (IAM Identity Center). Password: 12+ chars, change 90 days OR risk-based. Failed login lockout: 6 attempts → 30min. Session timeout: 15min idle. No group/shared accounts.</div><div class="req-aws">→ IAM Identity Center · Cognito · FIDO2 · Password Policy</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 10</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Log and Monitor All Access</div><div class="req-txt">CloudTrail data events: all CDE API calls. VPC Flow Logs: all CDE network traffic. Custom audit log: every PAN access. Log retention: 12 months total, 3 months immediately available online (CloudWatch). Tamper-evident: S3 Object Lock. Daily log review automated (Security Hub).</div><div class="req-aws">→ CloudTrail · VPC Flow Logs · CloudWatch · Security Hub · S3 Object Lock</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 11</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Test Security Regularly</div><div class="req-txt">Internal pen test: quarterly. External ASV scan: quarterly. Intrusion detection: GuardDuty + Network Firewall (continuous). FIM: Config + Falco (file integrity on CDE systems). Vulnerability scan: Inspector V2 (continuous). Annual external pen test by CREST-certified firm.</div><div class="req-aws">→ GuardDuty · Inspector · Network Firewall · Falco · Config</div></div></div>
+  <div class="req-row"><div class="req-num req-num-fin">Req 12</div><div><div style="font-weight:600;color:#e2e8f0;font-size:.73rem">Security Policy &amp; Program</div><div class="req-txt">Information Security Policy (annual review). Risk assessment: annual (AWS Audit Manager PCI framework). Security awareness training (PCI-DSS module). Vendor management: BAA/contract for all CDE vendors. Incident response plan (tested annually). QSA assessment annually.</div><div class="req-aws">→ Audit Manager (PCI) · Security Hub · Config · GuardDuty</div></div></div>
+</div>
+
+<div class="card card-fin">
+  <div class="card-hd card-hd-fin">SOX ITGC + GLBA Controls</div>
+  <div class="sc ctrl-fin"><h4>SOX — Separation of Duties (SoD)</h4><p>Developers: access to dev/staging only (SCP enforced). Operations: read-only prod access. Release manager: approves production deploys (cannot develop). Finance system DBAs: separate from app DBAs. Config enforces: no developer IAM role in prod financial account. Change Advisory Board (CAB) for financial system changes.</p></div>
+  <div class="sc ctrl-fin"><h4>SOX — Change Management (ITGC CC6-8)</h4><p>All financial system changes require: ticket in Jira, peer review, manager approval, test evidence. ArgoCD: production deploy requires 2-person approval for financial services. Git tags signed (no unsigned deploys). Change log immutable in DynamoDB (append-only). Quarterly change log audit by external auditors.</p></div>
+  <div class="sc ctrl-fin"><h4>SOX — Access Control Reviews (CC6.2)</h4><p>Quarterly access recertification via automated report. IAM Access Analyzer generates unused access report. Managers certify every user's access quarterly. Failed certification = auto-revoke after 7 days. Evidence stored in Audit Manager for SOX auditors. Role engineering reviews annually.</p></div>
+  <div class="sc ctrl-fin"><h4>SOX — Operations &amp; BCDR (CC7.5, A1)</h4><p>Financial systems: RTO &lt;1h, RPO &lt;5min (Aurora Global). Backup tested monthly (restore exercise). DR test semi-annually (full failover). Change windows for financial systems: weekends only. Monitoring: 24/7 NOC with PagerDuty escalation. Infrastructure changes: CAB-approved, with rollback plan.</p></div>
+  <div class="sc ctrl-fin"><h4>GLBA Safeguards Rule (FTC 16 CFR Part 314)</h4><p>Designated qualified individual (CISO) overseeing program. Annual risk assessment documented in Audit Manager. Encryption of customer financial data at rest (KMS CMK) + in transit (TLS 1.3). Vendor oversight: security review + contractual security requirements for all processors. Incident response: notify FTC within 30 days of breach &gt;500 customers. Multi-factor for financial system access. Employee training annually.</p></div>
+  <div class="sc ctrl-fin"><h4>Amazon Fraud Detector — ML Fraud Detection</h4><p>Real-time transaction scoring (&lt;100ms). Models: account takeover, online fraud, suspicious sign-in. Custom variables: transaction amount, device fingerprint, IP reputation, velocity. Score threshold → approve/review/deny. Feedback loop: confirmed fraud → model retraining. CloudWatch metrics + PagerDuty on high fraud rate.</p></div>
+  <div class="sc ctrl-fin"><h4>CloudHSM — Dual Control Key Management</h4><p>PCI Req 3.7: Split knowledge + dual control for cryptographic keys. Key custodian A holds HSM partition password. Key custodian B holds authentication credential. Both required for key ceremony. CloudHSM audit log: every key operation. HSM cluster: 3 nodes across 3 AZs (99.999% availability). Annual key rotation ceremony documented.</p></div>
+</div>
+</div>
+
+<div class="card card-fin">
+  <div class="card-hd card-hd-fin">File Integrity Monitoring (FIM) — PCI Req 11.5</div>
+  <div class="g4">
+    <div><div style="font-size:.7rem;font-weight:700;color:#fbbf24;margin-bottom:7px">AWS Config FIM</div><div style="font-size:.66rem;color:#94a3b8;line-height:1.7"><div>• Config rules detect resource drift</div><div>• SSM Inventory tracks file hashes</div><div>• Baseline vs current comparison</div><div>• Alert on unauthorized change</div><div>• Remediation: SSM Automation</div></div></div>
+    <div><div style="font-size:.7rem;font-weight:700;color:#fbbf24;margin-bottom:7px">Falco Runtime FIM</div><div style="font-size:.66rem;color:#94a3b8;line-height:1.7"><div>• Detect writes to /etc, /bin, /lib</div><div>• Alert on new SUID binaries</div><div>• Monitor container escape attempts</div><div>• Real-time Falco Sidekick → SIEM</div><div>• Block + isolate on critical rule</div></div></div>
+    <div><div style="font-size:.7rem;font-weight:700;color:#fbbf24;margin-bottom:7px">Tripwire / AIDE (EC2)</div><div style="font-size:.66rem;color:#94a3b8;line-height:1.7"><div>• Baseline hash of all CDE files</div><div>• Nightly integrity check via SSM</div><div>• Deviations → CloudWatch alarm</div><div>• Immutable baseline in S3</div><div>• FIM report → Audit Manager</div></div></div>
+    <div><div style="font-size:.7rem;font-weight:700;color:#fbbf24;margin-bottom:7px">Code Integrity</div><div style="font-size:.66rem;color:#94a3b8;line-height:1.7"><div>• Cosign: all container images signed</div><div>• Admission webhook: verify sig</div><div>• Lambda code signing enforced</div><div>• Git commits signed (GPG/SSH)</div><div>• Tag signing for releases</div></div></div>
+  </div>
+</div>
+</div><!-- end finance -->
+
+<!-- ===== TAB 8: COMPLIANCE ===== -->
+<div id="compliance" class="tab-pane">
+<div class="page-title">Compliance &amp; Governance</div>
+<div class="page-sub">Automated evidence collection · Multi-framework coverage · AWS Audit Manager · Continuous compliance posture</div>
+
+<div class="g2" style="margin-bottom:14px">
+<div class="card">
+  <div class="card-hd">Framework Coverage Matrix</div>
+  <div class="comp-row"><span class="comp-name">HIPAA / HITECH</span><span style="display:flex;gap:6px"><span class="badge b-teal">Audit Manager</span><span class="badge b-grn">Config Pack (140 rules)</span></span></div>
+  <div class="comp-row"><span class="comp-name">PCI-DSS v4.0</span><span style="display:flex;gap:6px"><span class="badge b-gold">Audit Manager</span><span class="badge b-grn">Config Pack (66 rules)</span></span></div>
+  <div class="comp-row"><span class="comp-name">SOX ITGC</span><span style="display:flex;gap:6px"><span class="badge b-gold">Audit Manager</span><span class="badge b-org">Manual evidence</span></span></div>
+  <div class="comp-row"><span class="comp-name">GLBA Safeguards Rule</span><span style="display:flex;gap:6px"><span class="badge b-gold">Custom Assessment</span><span class="badge b-org">Annual review</span></span></div>
+  <div class="comp-row"><span class="comp-name">CIS AWS Foundations Benchmark v2</span><span style="display:flex;gap:6px"><span class="badge b-grn">Security Hub Standard</span><span class="badge b-grn">Config Pack (126 rules)</span></span></div>
+  <div class="comp-row"><span class="comp-name">NIST SP 800-53 Rev 5</span><span style="display:flex;gap:6px"><span class="badge b-grn">Security Hub Standard</span><span class="badge b-grn">Full control mapping</span></span></div>
+  <div class="comp-row"><span class="comp-name">NIST CSF 2.0</span><span style="display:flex;gap:6px"><span class="badge b-grn">Security Hub mapped</span><span class="badge b-org">Maturity scoring</span></span></div>
+  <div class="comp-row"><span class="comp-name">SOC 2 Type II</span><span style="display:flex;gap:6px"><span class="badge b-grn">Audit Manager</span><span class="badge b-grn">TSC (CC1-CC9)</span></span></div>
+  <div class="comp-row"><span class="comp-name">ISO 27001:2022</span><span style="display:flex;gap:6px"><span class="badge b-org">Audit Manager</span><span class="badge b-org">Control mapping</span></span></div>
+  <div class="comp-row"><span class="comp-name">GDPR / CCPA Data Privacy</span><span style="display:flex;gap:6px"><span class="badge b-org">Macie + Lake Formation</span><span class="badge b-org">DSR workflow</span></span></div>
+  <div class="comp-row"><span class="comp-name">FedRAMP Moderate (if required)</span><span style="display:flex;gap:6px"><span class="badge b-blu">NIST 800-53 base</span><span class="badge b-org">Authorization path</span></span></div>
+  <div class="comp-row"><span class="comp-name">FFIEC Cybersecurity Assessment</span><span style="display:flex;gap:6px"><span class="badge b-gold">Financial institutions</span><span class="badge b-org">Maturity model</span></span></div>
+</div>
+<div class="card">
+  <div class="card-hd">Security SLAs, KPIs &amp; Metrics</div>
+  <div class="comp-row"><span class="comp-name">MTTR — Critical Security Incident (HIPAA breach)</span><span class="badge b-red">&lt; 1 hour contain · 60d notify HHS</span></div>
+  <div class="comp-row"><span class="comp-name">MTTR — Critical Security Incident (PCI)</span><span class="badge b-red">&lt; 1 hour · isolate CDE</span></div>
+  <div class="comp-row"><span class="comp-name">Critical CVE Patch SLA</span><span class="badge b-red">&lt; 24 hours (PCI Req 6.3.3)</span></div>
+  <div class="comp-row"><span class="comp-name">High CVE Patch SLA</span><span class="badge b-org">&lt; 7 days</span></div>
+  <div class="comp-row"><span class="comp-name">RTO — Financial / PHI systems (Tier 1)</span><span class="badge b-grn">&lt; 1 hour</span></div>
+  <div class="comp-row"><span class="comp-name">RPO — Aurora Global DB</span><span class="badge b-grn">&lt; 1 second</span></div>
+  <div class="comp-row"><span class="comp-name">Uptime SLA (prod)</span><span class="badge b-grn">99.99% (&lt;52min downtime/yr)</span></div>
+  <div class="comp-row"><span class="comp-name">Pen Testing — CDE systems</span><span class="badge b-blu">Quarterly internal + Annual external (CREST)</span></div>
+  <div class="comp-row"><span class="comp-name">ASV Scan (PCI Req 11.3)</span><span class="badge b-blu">Quarterly — Approved Scanning Vendor</span></div>
+  <div class="comp-row"><span class="comp-name">Access Recertification</span><span class="badge b-blu">Quarterly (automated report)</span></div>
+  <div class="comp-row"><span class="comp-name">Security Training (HIPAA + PCI)</span><span class="badge b-blu">Annual + phishing simulation quarterly</span></div>
+  <div class="comp-row"><span class="comp-name">Vendor BAA / Contract Review</span><span class="badge b-blu">Annual</span></div>
+  <div class="comp-row"><span class="comp-name">HIPAA Risk Assessment</span><span class="badge b-teal">Annual (Audit Manager)</span></div>
+  <div class="comp-row"><span class="comp-name">DR Test (BCDR)</span><span class="badge b-grn">Semi-annual full failover test</span></div>
+</div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">AWS Well-Architected Security Pillar — Full Control Matrix</div>
+  <div class="g3">
+    <div>
+      <div style="font-size:.73rem;font-weight:700;color:#f87171;margin-bottom:8px">SEC 1 — Identity &amp; Access</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>✓ MFA (FIDO2 phishing-resistant)</div>
+        <div>✓ No root account usage (SCP)</div>
+        <div>✓ Centralized identity (IAM Identity Center)</div>
+        <div>✓ Temporary credentials (IRSA + STS)</div>
+        <div>✓ ABAC for resource access</div>
+        <div>✓ Permission boundaries on dev roles</div>
+        <div>✓ JIT access (no standing privilege)</div>
+        <div>✓ SCPs — preventive guardrails org-wide</div>
+        <div>✓ Access Analyzer — unintended paths</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.73rem;font-weight:700;color:#fb923c;margin-bottom:8px">SEC 2 — Detection</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>✓ GuardDuty all regions + EKS + Lambda</div>
+        <div>✓ CloudTrail organization trail (7yr)</div>
+        <div>✓ Security Hub all standards</div>
+        <div>✓ Config 160+ rules + conformance packs</div>
+        <div>✓ VPC Flow Logs all VPCs</div>
+        <div>✓ DNS Query Logging (Route 53)</div>
+        <div>✓ DNS Firewall (malicious domain block)</div>
+        <div>✓ EventBridge automated response</div>
+        <div>✓ Macie PII/PHI/PAN detection</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.73rem;font-weight:700;color:#fbbf24;margin-bottom:8px">SEC 3 — Infrastructure</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>✓ WAF v2 + Bot Control + Shield Adv</div>
+        <div>✓ AWS Firewall Manager (org-wide WAF)</div>
+        <div>✓ AWS Network Firewall (Suricata)</div>
+        <div>✓ Private subnets for all workloads</div>
+        <div>✓ VPC endpoints (no internet for AWS APIs)</div>
+        <div>✓ CDE subnet isolation (PCI)</div>
+        <div>✓ DNS Firewall (Route 53 Resolver)</div>
+        <div>✓ No public SSH/RDP (SSM only)</div>
+        <div>✓ NACLs + SGs as dual-layer firewall</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.73rem;font-weight:700;color:#4ade80;margin-bottom:8px">SEC 4 — Data Protection</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>✓ CloudHSM (FIPS 140-2 L3) for PHI/PAN</div>
+        <div>✓ KMS CMK per data classification tier</div>
+        <div>✓ TLS 1.3 everywhere</div>
+        <div>✓ CloudFront Field-Level Encryption</div>
+        <div>✓ S3 Object Lock (audit logs, WORM)</div>
+        <div>✓ Secrets Manager auto-rotation</div>
+        <div>✓ Tokenization (PAN) · De-ID (PHI)</div>
+        <div>✓ Macie + Lake Formation governance</div>
+        <div>✓ No secrets in env vars or logs</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.73rem;font-weight:700;color:#22d3ee;margin-bottom:8px">SEC 5 — Incident Response</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>✓ IR runbooks in Systems Manager</div>
+        <div>✓ GameDay quarterly exercises</div>
+        <div>✓ Automated containment (Step Functions)</div>
+        <div>✓ Detective for forensic investigation</div>
+        <div>✓ Dedicated forensic account</div>
+        <div>✓ Break-glass with 2-person approval</div>
+        <div>✓ HIPAA: 60-day breach notification</div>
+        <div>✓ PCI: contain CDE breach in &lt;1h</div>
+        <div>✓ SOX: post-incident financial impact report</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.73rem;font-weight:700;color:#c084fc;margin-bottom:8px">SEC 6 — Application Security</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>✓ SAST: Semgrep + SonarQube + CodeQL</div>
+        <div>✓ DAST: OWASP ZAP + Nuclei</div>
+        <div>✓ Container: Trivy + Snyk + ECR scan</div>
+        <div>✓ IaC: Checkov + tfsec + Conftest</div>
+        <div>✓ Image signing: Cosign (enforced)</div>
+        <div>✓ SBOM: CycloneDX per build</div>
+        <div>✓ SLSA Level 3 build provenance</div>
+        <div>✓ Compliance-as-code in CI/CD</div>
+        <div>✓ Quarterly pen testing (CREST-certified)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-hd">Multi-Account Organization Structure (AWS Control Tower)</div>
+  <div class="g5">
+    <div style="background:#080f1e;border:1px solid #1a3054;border-radius:8px;padding:12px">
+      <div style="font-size:.72rem;font-weight:700;color:#f87171;margin-bottom:7px">Security OU</div>
+      <div style="font-size:.65rem;color:#94a3b8;line-height:1.7"><div>• Security Hub (aggregator)</div><div>• GuardDuty administrator</div><div>• CloudTrail (org trail)</div><div>• Config aggregator</div><div>• SIEM / OpenSearch</div><div>• Audit Manager</div><div>• Read-only to all OUs</div></div>
+    </div>
+    <div style="background:#080f1e;border:1px solid #1a3054;border-radius:8px;padding:12px">
+      <div style="font-size:.72rem;font-weight:700;color:#4ade80;margin-bottom:7px">Production OU</div>
+      <div style="font-size:.65rem;color:#94a3b8;line-height:1.7"><div>• EKS prod cluster</div><div>• Aurora (multi-AZ)</div><div>• HealthLake (HIPAA)</div><div>• CDE account (PCI)</div><div>• No dev SSH access</div><div>• Immutable audit logs</div><div>• CloudHSM cluster</div></div>
+    </div>
+    <div style="background:#080f1e;border:1px solid #1a3054;border-radius:8px;padding:12px">
+      <div style="font-size:.72rem;font-weight:700;color:#60a5fa;margin-bottom:7px">Shared Services OU</div>
+      <div style="font-size:.65rem;color:#94a3b8;line-height:1.7"><div>• ECR (container registry)</div><div>• ArgoCD</div><div>• Vault (HashiCorp)</div><div>• Nexus / Artifactory</div><div>• Internal DNS</div><div>• Private CA</div><div>• Transit Gateway hub</div></div>
+    </div>
+    <div style="background:#080f1e;border:1px solid #1a3054;border-radius:8px;padding:12px">
+      <div style="font-size:.72rem;font-weight:700;color:#fbbf24;margin-bottom:7px">Non-Prod OU</div>
+      <div style="font-size:.65rem;color:#94a3b8;line-height:1.7"><div>• Dev sandboxes</div><div>• Staging environment</div><div>• QA environment</div><div>• Synthetic PHI only</div><div>• Tokenized PAN only</div><div>• Auto-cleanup Lambda</div><div>• Budget alerts + limits</div></div>
+    </div>
+    <div style="background:#080f1e;border:1px solid #1a3054;border-radius:8px;padding:12px">
+      <div style="font-size:.72rem;font-weight:700;color:#a78bfa;margin-bottom:7px">Management OU</div>
+      <div style="font-size:.65rem;color:#94a3b8;line-height:1.7"><div>• Organizations root</div><div>• Control Tower</div><div>• SCPs (all accounts)</div><div>• Billing + Cost Explorer</div><div>• Trusted Advisor</div><div>• No workloads here</div><div>• Break-glass accounts</div></div>
+    </div>
+  </div>
+</div>
+</div><!-- end compliance -->
+
+<!-- ===== TAB 9: IR & DR ===== -->
+<div id="ir" class="tab-pane">
+<div class="page-title">Incident Response &amp; Disaster Recovery</div>
+<div class="page-sub">NIST SP 800-61 IR lifecycle · HIPAA breach notification · PCI incident containment · Active-Active multi-region DR</div>
+
+<div class="banner banner-ir">
+  <span>🚨</span>
+  <span><strong>Regulatory IR Requirements:</strong> HIPAA breach → notify HHS within 60 days (500+ individuals: also notify media) · PCI Req 12.10 → IR plan tested annually · GLBA → notify FTC within 30 days of breach ≥500 customers · SOX → financial impact assessment within 24h · SEC Rule 10-Q/K → material cybersecurity disclosures within 4 business days</span>
+</div>
+
+<div class="g2" style="margin-bottom:14px">
+<div class="card card-ir">
+  <div class="card-hd card-hd-ir">IR Phases — NIST SP 800-61 Rev 2</div>
+  <div class="sc ctrl-crit"><h4>1 — Preparation</h4><p>IR runbooks in AWS Systems Manager (Runbook automation). Trained IR team (24/7 on-call via PagerDuty). Pre-authorized toolset in forensic account. Tabletop exercises quarterly. GameDay exercises semi-annual. IR contact list maintained (legal, CISO, PR, regulators). AWS IR retainer (optional: AWS Support Enterprise).</p></div>
+  <div class="sc ctrl-crit"><h4>2 — Detection &amp; Analysis</h4><p>GuardDuty + Security Hub findings. Falco runtime anomalies. CloudWatch composite alarms. SIEM correlation (OpenSearch + Sigma rules). Triage severity: P1 (Critical, &lt;15min response), P2 (High, &lt;1h), P3 (Medium, &lt;4h). Detective: entity graph analysis. VPC Flow Logs + CloudTrail correlation.</p></div>
+  <div class="sc ctrl-crit"><h4>3 — Containment</h4><p>SHORT-TERM: Isolate EC2 (remove from SG, attach quarantine SG). Block IAM credential (auto via Lambda). Block IP at WAF. Disable compromised Lambda/EKS pod. LONG-TERM: Snapshot EBS for forensics. Terminate compromised instances. Rotate all secrets in impacted account. Deploy clean baseline from golden AMI/image.</p></div>
+  <div class="sc ctrl-high"><h4>4 — Eradication</h4><p>Remove malware (GuardDuty + Inspector findings). Patch exploited vulnerability. Rotate credentials across blast radius. Remove unauthorized IAM users/keys. Re-image affected nodes (Bottlerocket: rollback to known-good). Validate no persistence mechanisms remain. Forensic deep-dive via Detective.</p></div>
+  <div class="sc ctrl-high"><h4>5 — Recovery</h4><p>Restore from clean backup (AWS Backup Vault). Validate data integrity (checksum comparison). Gradually restore traffic (canary approach). Monitor for re-infection for 48h. Restore DR VPC if primary compromised. RTO targets: Tier 1 (PHI/Payment) &lt;1h · Tier 2 (Core App) &lt;4h · Tier 3 (Analytics) &lt;24h.</p></div>
+  <div class="sc ctrl-med"><h4>6 — Post-Incident Review</h4><p>Blameless post-mortem within 5 business days. Root cause analysis (RCA). Timeline reconstruction via CloudTrail + Detective. Lessons learned documented. Control gaps identified + remediation tracked in Jira. Security Hub custom insight updated. Regulators notified (HIPAA/PCI/GLBA timelines above).</p></div>
+</div>
+
+<div class="card card-ir">
+  <div class="card-hd card-hd-ir">Automated IR Playbooks — Step Functions</div>
+  <div class="sc ctrl-crit"><h4>Playbook 1: Compromised IAM Credentials</h4><p>GuardDuty: UnauthorizedAccess/IAMUser → EventBridge → Step Functions:<br>1. Detach all policies from user/role<br>2. Deny all via inline policy<br>3. Revoke all active sessions<br>4. Create CloudTrail Insights query<br>5. Notify CISO + Security team (SNS)<br>6. Page on-call (PagerDuty P1)<br>7. Create Jira incident ticket<br>8. Await human decision: delete vs. investigate</p></div>
+  <div class="sc ctrl-crit"><h4>Playbook 2: Ransomware / EC2 Compromise</h4><p>GuardDuty: CryptoCurrency/BitcoinTool or Trojan → EventBridge:<br>1. Isolate EC2 (quarantine SG: deny all)<br>2. Create forensic EBS snapshot<br>3. Block IAM instance profile<br>4. Enable enhanced VPC Flow Logs<br>5. Terminate instance (no recovery of compromised node)<br>6. Deploy clean replacement from ASG<br>7. IR team notified (P1 page)<br>8. Legal hold on CloudTrail logs</p></div>
+  <div class="sc ctrl-crit"><h4>Playbook 3: PHI Data Breach (HIPAA)</h4><p>Macie: PHI in unexpected S3 location → EventBridge:<br>1. Block S3 public access (immediate)<br>2. Quarantine bucket (deny all except IR role)<br>3. Preserve CloudTrail evidence (legal hold)<br>4. Detective: identify blast radius (who accessed?)<br>5. Legal team notified (60-day HIPAA clock starts)<br>6. Determine: breach or not (HIPAA 4-factor test)<br>7. If breach: prepare HHS notification<br>8. If 500+: prepare media notification</p></div>
+  <div class="sc ctrl-crit"><h4>Playbook 4: PCI CDE Breach</h4><p>GuardDuty CDE finding or FIM alert → EventBridge:<br>1. ISOLATE CDE immediately (remove from payment network)<br>2. Preserve all CDE logs (legal hold)<br>3. Page CISO + Legal + QSA (P1, immediate)<br>4. Engage PCI Forensic Investigator (PFI) within 1h<br>5. Notify acquiring bank within 24h<br>6. Card brands notified per card brand rules<br>7. Remediate before reconnecting to payment network<br>8. QSA validates remediation</p></div>
+  <div class="sc ctrl-high"><h4>Playbook 5: DDoS Attack</h4><p>Shield Advanced detection → EventBridge:<br>1. Shield Advanced auto-mitigation activates<br>2. Escalate to AWS DRT (Managed DDoS Response Team)<br>3. WAF: add rate-based rule for attacking IP ranges<br>4. CloudFront: enable geo-restriction if attack from specific countries<br>5. Route 53: health check failover to DR region if primary overwhelmed<br>6. Status page: update with degraded performance notice<br>7. Monitor: CloudWatch DDoS dashboards<br>8. Post-attack: review Shield event report</p></div>
+  <div class="sc ctrl-high"><h4>Playbook 6: Insider Threat</h4><p>GuardDuty anomaly or UEBA alert:<br>1. Silently preserve all access logs (no user notification)<br>2. Detective: entity timeline analysis<br>3. IAM Access Analyzer: review access scope<br>4. Legal + HR + Security loop opened<br>5. Evidence preserved in forensic account<br>6. Decision: revoke access + investigate<br>7. If PHI/PAN accessed: breach determination<br>8. HR + Legal: disciplinary + regulatory action</p></div>
+</div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <div class="card-hd">Multi-Region Disaster Recovery — Active-Active Architecture</div>
+  <div class="g3">
+    <div>
+      <div style="font-size:.72rem;font-weight:700;color:#f43f5e;margin-bottom:8px">Primary Region: us-east-1</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>🟢 EKS Cluster (active, 100% traffic)</div>
+        <div>🟢 Aurora PostgreSQL (primary writer)</div>
+        <div>🟢 ElastiCache Redis (primary)</div>
+        <div>🟢 HealthLake (FHIR primary)</div>
+        <div>🟢 CloudHSM cluster (3 nodes)</div>
+        <div>🟢 S3 buckets (CRR enabled → us-west-2)</div>
+        <div>🟢 Route 53: primary health check</div>
+        <div style="margin-top:6px;color:#4ade80">Normal operation: 100% traffic here</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.72rem;font-weight:700;color:#f43f5e;margin-bottom:8px">DR Region: us-west-2</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div>🟡 EKS Cluster (warm standby, 0% traffic)</div>
+        <div>🟡 Aurora Global DB (read replica, &lt;1s lag)</div>
+        <div>🟡 ElastiCache Redis (replica)</div>
+        <div>🟡 HealthLake (cross-region backup)</div>
+        <div>🟡 CloudHSM cluster (pre-provisioned)</div>
+        <div>🟡 S3 buckets (CRR destination)</div>
+        <div>🟡 Route 53: failover target</div>
+        <div style="margin-top:6px;color:#fbbf24">Failover: &lt;5 min DNS TTL cutover</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.72rem;font-weight:700;color:#f43f5e;margin-bottom:8px">DR Tiers &amp; RTO/RPO</div>
+      <div style="font-size:.67rem;color:#94a3b8;line-height:1.8">
+        <div><span class="badge b-red">Tier 1</span> PHI / Payment systems</div>
+        <div style="margin-left:12px">RTO: &lt;1h · RPO: &lt;1s (Aurora Global)</div>
+        <div><span class="badge b-org">Tier 2</span> Core application</div>
+        <div style="margin-left:12px">RTO: &lt;4h · RPO: &lt;5min (PITR)</div>
+        <div><span class="badge b-yel">Tier 3</span> Analytics / reporting</div>
+        <div style="margin-left:12px">RTO: &lt;24h · RPO: &lt;1h (S3 CRR)</div>
+        <div><span class="badge b-blu">Tier 4</span> Dev / non-prod</div>
+        <div style="margin-left:12px">RTO: &lt;48h · RPO: daily backup</div>
+        <div style="margin-top:6px;color:#22d3ee">Semi-annual DR failover test required</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="g2">
+  <div class="card">
+    <div class="card-hd">Backup Strategy — 3-2-1-1 Rule</div>
+    <div style="font-size:.7rem;color:#94a3b8;line-height:1.9">
+      <div><span class="badge b-red">3</span> copies of data (primary + backup + archive)</div>
+      <div><span class="badge b-org">2</span> different media types (EBS + S3)</div>
+      <div><span class="badge b-yel">1</span> offsite copy (us-west-2 via CRR / Aurora Global)</div>
+      <div><span class="badge b-grn">1</span> immutable copy (S3 Object Lock Compliance)</div>
+      <div style="margin-top:8px">
+        <div>📦 Aurora: automated backups (35d) + manual (long-term)</div>
+        <div>📦 DynamoDB: PITR (35d) + export to S3</div>
+        <div>📦 EBS: DLM snapshots (daily, 30d retention)</div>
+        <div>📦 S3: versioning + CRR + Object Lock (7yr audit logs)</div>
+        <div>📦 K8s: Velero daily backup → S3 (cross-region)</div>
+        <div>📦 HealthLake: daily export to S3 + cross-region backup</div>
+        <div>📦 AWS Backup: centralized with Vault Lock</div>
+        <div style="margin-top:6px;color:#22d3ee">Restore tested monthly via automated restore exercise</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd">Regulatory Notification Timeline</div>
+    <div style="font-size:.7rem;color:#94a3b8;line-height:1">
+      <div class="risk-row" style="background:#0c1525;border-radius:4px 4px 0 0">
+        <div>Regulation / Scenario</div><div style="text-align:center">Notify</div><div style="text-align:center">Deadline</div><div style="text-align:center">Severity</div>
+      </div>
+      <div class="risk-row"><div>HIPAA breach (&lt;500 individuals)</div><div style="text-align:center">HHS</div><div style="text-align:center">60 days after year end</div><div><span class="risk-sev" style="background:#422006;color:#fdba74">HIGH</span></div></div>
+      <div class="risk-row"><div>HIPAA breach (&gt;500 individuals)</div><div style="text-align:center">HHS + Media</div><div style="text-align:center">60 days after discovery</div><div><span class="risk-sev" style="background:#450a0a;color:#f87171">CRIT</span></div></div>
+      <div class="risk-row"><div>PCI — Card brand notification</div><div style="text-align:center">Acquirer + Card Brand</div><div style="text-align:center">24 hours</div><div><span class="risk-sev" style="background:#450a0a;color:#f87171">CRIT</span></div></div>
+      <div class="risk-row"><div>GLBA breach (&gt;500 customers)</div><div style="text-align:center">FTC</div><div style="text-align:center">30 days</div><div><span class="risk-sev" style="background:#450a0a;color:#f87171">CRIT</span></div></div>
+      <div class="risk-row"><div>SEC — Material cyber incident</div><div style="text-align:center">SEC (Form 8-K)</div><div style="text-align:center">4 business days</div><div><span class="risk-sev" style="background:#450a0a;color:#f87171">CRIT</span></div></div>
+      <div class="risk-row"><div>SOX — Financial system breach</div><div style="text-align:center">Board + External Auditor</div><div style="text-align:center">24 hours internal</div><div><span class="risk-sev" style="background:#450a0a;color:#f87171">CRIT</span></div></div>
+      <div class="risk-row"><div>GDPR personal data breach</div><div style="text-align:center">DPA (supervisory auth)</div><div style="text-align:center">72 hours</div><div><span class="risk-sev" style="background:#422006;color:#fdba74">HIGH</span></div></div>
+      <div class="risk-row" style="border-bottom:none"><div>State data breach laws (avg)</div><div style="text-align:center">State AG + Individuals</div><div style="text-align:center">30-90 days (varies)</div><div><span class="risk-sev" style="background:#422006;color:#fdba74">HIGH</span></div></div>
+    </div>
+  </div>
+</div>
+</div><!-- end ir -->
+
+</div><!-- end .content -->
+
+<script>
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(btn) btn.classList.add('active');
+}
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+  const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+  const active = tabs.findIndex(t => t.classList.contains('active'));
+  if(e.key === 'ArrowRight' && active < tabs.length-1) tabs[active+1].click();
+  if(e.key === 'ArrowLeft' && active > 0) tabs[active-1].click();
+});
+</script>
+</body>
+</html>

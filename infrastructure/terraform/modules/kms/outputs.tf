@@ -1,0 +1,11 @@
+output "phi_key_arn"        { value = aws_kms_key.phi.arn }
+output "phi_key_id"         { value = aws_kms_key.phi.key_id }
+output "pan_key_arn"        { value = aws_kms_key.pan.arn }
+output "pan_key_id"         { value = aws_kms_key.pan.key_id }
+output "app_key_arn"        { value = aws_kms_key.app.arn }
+output "app_key_id"         { value = aws_kms_key.app.key_id }
+output "secrets_key_arn"    { value = aws_kms_key.secrets.arn }
+output "cloudtrail_key_arn" { value = aws_kms_key.cloudtrail.arn }
+output "eks_key_arn"        { value = aws_kms_key.eks.arn }
+output "tfstate_key_arn"    { value = aws_kms_key.tfstate.arn }
+output "tfstate_key_alias"  { value = aws_kms_alias.tfstate.name }

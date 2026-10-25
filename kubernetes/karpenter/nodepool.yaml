@@ -1,0 +1,191 @@
+################################################################################
+# Karpenter — NodePool + EC2NodeClass
+# Security: Bottlerocket OS, IMDSv2, IRSA, no SSH
+################################################################################
+
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: application
+        managed-by: karpenter
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
+    spec:
+      nodeClassRef:
+        apiVersion: karpenter.k8s.aws/v1beta1
+        kind: EC2NodeClass
+        name: default
+
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand", "spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["5"]
+        - key: karpenter.k8s.aws/instance-size
+          operator: NotIn
+          values: ["nano", "micro", "small"]
+
+      taints: []
+
+      # Security: restrict what pods can be scheduled
+      kubelet:
+        systemReserved:
+          cpu: "250m"
+          memory: "500Mi"
+        kubeReserved:
+          cpu: "250m"
+          memory: "500Mi"
+        evictionHard:
+          memory.available: "5%"
+          nodefs.available: "10%"
+        maxPods: 110
+
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    consolidateAfter: 30s
+    expireAfter: 720h  # 30 days — force node rotation for OS updates
+
+  limits:
+    cpu: 1000
+    memory: 4000Gi
+
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  # Bottlerocket for immutable, hardened OS
+  amiFamily: Bottlerocket
+
+  # Use pre-built Bottlerocket EKS AMIs
+  amiSelectorTerms:
+    - alias: bottlerocket@latest
+
+  # Instance profile for Karpenter nodes
+  instanceProfile: karpenter-node-profile
+
+  # Private subnets only — no public IPs
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "true"
+        Tier: "private"
+
+  # Security group for nodes
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "true"
+
+  # IMDSv2 required — hop limit 1 blocks pod access to IMDS
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 1  # Prevents pods from using IMDS
+    httpTokens: required         # IMDSv2 mandatory
+
+  # Block device — encrypted root volume
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 30Gi
+        volumeType: gp3
+        encrypted: true
+        iops: 3000
+        throughput: 125
+        deleteOnTermination: true
+    - deviceName: /dev/xvdb  # Bottlerocket data volume
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+        iops: 3000
+        throughput: 125
+        deleteOnTermination: true
+
+  # Bottlerocket user data — security hardening
+  userData: |
+    [settings.kernel]
+    lockdown = "integrity"
+
+    [settings.kernel.sysctl]
+    "net.ipv4.conf.all.rp_filter" = "1"
+    "net.ipv4.conf.default.rp_filter" = "1"
+    "net.ipv4.tcp_syncookies" = "1"
+    "net.ipv4.conf.all.accept_redirects" = "0"
+    "net.ipv4.conf.default.accept_redirects" = "0"
+    "net.ipv4.conf.all.send_redirects" = "0"
+    "net.ipv4.conf.all.accept_source_route" = "0"
+    "net.ipv4.conf.all.log_martians" = "1"
+    "kernel.dmesg_restrict" = "1"
+    "kernel.kptr_restrict" = "2"
+    "kernel.perf_event_paranoid" = "3"
+    "fs.suid_dumpable" = "0"
+    "vm.swappiness" = "10"
+
+    [settings.host-containers.admin]
+    enabled = false  # No admin container SSH access
+
+    [settings.host-containers.control]
+    enabled = true   # SSM control channel only
+
+  tags:
+    Environment: production
+    ManagedBy: karpenter
+    Compliance: HIPAA-PCI
+
+---
+# Spot-optimized pool for non-critical workloads
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: spot-workers
+spec:
+  template:
+    metadata:
+      labels:
+        node-type: spot-worker
+    spec:
+      nodeClassRef:
+        apiVersion: karpenter.k8s.aws/v1beta1
+        kind: EC2NodeClass
+        name: default
+
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m"]
+        - key: karpenter.k8s.aws/instance-size
+          operator: In
+          values: ["large", "xlarge", "2xlarge"]
+
+      taints:
+        - key: spot
+          value: "true"
+          effect: NoSchedule
+
+  disruption:
+    consolidationPolicy: WhenEmpty
+    expireAfter: 168h  # 7 days
+
+  limits:
+    cpu: 500
+    memory: 2000Gi

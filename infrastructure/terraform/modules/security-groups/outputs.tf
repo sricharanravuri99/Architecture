@@ -1,0 +1,11 @@
+output "alb_sg_id"             { value = aws_security_group.alb.id }
+output "app_sg_id"             { value = aws_security_group.app.id }
+output "eks_control_plane_sg_id" { value = aws_security_group.eks_control_plane.id }
+output "rds_sg_id"             { value = aws_security_group.rds.id }
+output "rds_proxy_sg_id"       { value = aws_security_group.rds_proxy.id }
+output "elasticache_sg_id"     { value = aws_security_group.elasticache.id }
+output "opensearch_sg_id"      { value = aws_security_group.opensearch.id }
+output "cloudhsm_sg_id"        { value = aws_security_group.cloudhsm.id }
+output "lambda_sg_id"          { value = aws_security_group.lambda.id }
+output "cde_sg_id"             { value = var.enable_cde ? aws_security_group.cde[0].id : "" }
+output "payment_proxy_sg_id"   { value = var.enable_cde ? aws_security_group.payment_proxy[0].id : "" }

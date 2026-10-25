@@ -1,0 +1,180 @@
+################################################################################
+# Falco Custom Rules — HIPAA/PCI Runtime Security
+# Detects: PHI access anomalies, privilege escalation, data exfiltration
+################################################################################
+
+- list: trusted_apps
+  items: [java, python3, node, nginx, envoy]
+
+- list: phi_file_paths
+  items: [/data/phi, /mnt/phi, /tmp/phi, /var/data/patients]
+
+- list: approved_outbound_hosts
+  items: [secretsmanager.us-east-1.amazonaws.com, s3.us-east-1.amazonaws.com]
+
+# HIPAA: Alert on unexpected PHI file access
+- rule: Unexpected PHI File Access
+  desc: A process accessed PHI data outside of authorized application processes
+  condition: >
+    open_read
+    and fd.name startswith /data/phi
+    and not proc.name in (trusted_apps)
+    and not container.image.repository contains "your-ecr-registry"
+  output: >
+    HIPAA VIOLATION - Unauthorized PHI access
+    (user=%user.name command=%proc.cmdline file=%fd.name
+    container=%container.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [hipaa, phi, data-access]
+
+# PCI: Alert on attempted access to CDE environment variables
+- rule: CDE Credential Access Attempt
+  desc: Process attempted to access payment card environment variables
+  condition: >
+    spawned_process
+    and (proc.args contains "PAN" or proc.args contains "CVV" or proc.args contains "CARD_NUMBER")
+    and not proc.name in (trusted_apps)
+  output: >
+    PCI VIOLATION - CDE credential access attempt
+    (user=%user.name command=%proc.cmdline container=%container.name)
+  priority: CRITICAL
+  tags: [pci, cde, credentials]
+
+# Detect privilege escalation
+- rule: Privilege Escalation via Sudo
+  desc: A container process executed sudo
+  condition: >
+    spawned_process
+    and proc.name = "sudo"
+    and container
+  output: >
+    Privilege escalation via sudo in container
+    (user=%user.name command=%proc.cmdline container=%container.name
+    image=%container.image.repository k8s.pod=%k8s.pod.name)
+  priority: CRITICAL
+  tags: [privilege-escalation, cis]
+
+# Detect new outbound connections to unexpected hosts
+- rule: Unexpected Outbound Network Connection
+  desc: Container made outbound connection to unexpected host
+  condition: >
+    outbound
+    and container
+    and not fd.sip in (rf_cidr_contains(10.0.0.0/8, fd.sip))
+    and not proc.name in (trusted_apps)
+    and fd.sport != 443
+    and fd.sport != 53
+  output: >
+    Unexpected outbound network connection from container
+    (connection=%fd.name user=%user.name command=%proc.cmdline
+    container=%container.name image=%container.image.repository)
+  priority: WARNING
+  tags: [network, exfiltration]
+
+# Detect shell spawned in container (possible RCE)
+- rule: Shell Spawned in Container
+  desc: A shell was spawned in a container — possible RCE
+  condition: >
+    spawned_process
+    and container
+    and shell_procs
+    and not proc.pname in (trusted_apps)
+    and not k8s.ns.name in (kube-system, monitoring)
+  output: >
+    Shell spawned in container — investigate for RCE
+    (user=%user.name shell=%proc.name parent=%proc.pname
+    container=%container.name image=%container.image.repository
+    k8s.pod=%k8s.pod.name k8s.ns=%k8s.ns.name)
+  priority: CRITICAL
+  tags: [rce, shell, incident]
+
+# Detect crypto mining activity
+- rule: Crypto Mining Activity
+  desc: Container process matches crypto mining binary patterns
+  condition: >
+    spawned_process
+    and container
+    and (proc.name in (xmrig, minerd, cpuminer, ethminer)
+         or proc.cmdline contains "stratum+tcp"
+         or proc.cmdline contains "xmr.pool")
+  output: >
+    Crypto mining activity detected
+    (user=%user.name command=%proc.cmdline container=%container.name
+    image=%container.image.repository k8s.pod=%k8s.pod.name)
+  priority: CRITICAL
+  tags: [crypto-mining, malware]
+
+# Detect sensitive file read (private keys, credentials)
+- rule: Read Sensitive File Untrusted
+  desc: An untrusted process read a sensitive file
+  condition: >
+    open_read
+    and sensitive_files
+    and not trusted_containers
+    and not proc.name in (trusted_apps)
+    and container
+  output: >
+    Sensitive file read by untrusted process
+    (user=%user.name command=%proc.cmdline file=%fd.name
+    container=%container.name image=%container.image.repository)
+  priority: HIGH
+  tags: [credentials, data-access]
+
+# Detect container escape attempt (mount of host filesystem)
+- rule: Container Escape via Host Filesystem Mount
+  desc: Process attempted to access host filesystem
+  condition: >
+    open_read
+    and container
+    and fd.name startswith /proc/1/
+  output: >
+    Container escape attempt — host filesystem access
+    (user=%user.name command=%proc.cmdline file=%fd.name
+    container=%container.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [container-escape, privilege-escalation]
+
+# HIPAA: Alert on bulk data export (potential exfiltration)
+- rule: Bulk Data Export Detected
+  desc: Large number of records being exported — possible PHI exfiltration
+  condition: >
+    write
+    and container
+    and fd.name contains "export"
+    and fd.l4proto = tcp
+    and not fd.sip in (rf_cidr_contains(10.0.0.0/8, fd.sip))
+  output: >
+    HIPAA - Bulk data export to external host
+    (user=%user.name command=%proc.cmdline destination=%fd.name
+    container=%container.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [hipaa, data-exfiltration, phi]
+
+# SOX: Alert on unauthorized change to financial data
+- rule: Unauthorized Financial Data Modification
+  desc: Non-approved process modified financial data files
+  condition: >
+    write
+    and fd.name contains "/data/financial"
+    and not proc.name in (trusted_apps)
+    and container
+  output: >
+    SOX VIOLATION - Unauthorized financial data modification
+    (user=%user.name command=%proc.cmdline file=%fd.name
+    container=%container.name)
+  priority: CRITICAL
+  tags: [sox, financial, audit]
+
+# Detect kubectl/helm execution (admin tool abuse)
+- rule: Kubernetes Admin Tool in Container
+  desc: kubectl or helm executed inside a container
+  condition: >
+    spawned_process
+    and container
+    and proc.name in (kubectl, helm, k9s, kubeconfig)
+  output: >
+    Kubernetes admin tool executed in container
+    (user=%user.name command=%proc.cmdline container=%container.name
+    image=%container.image.repository k8s.pod=%k8s.pod.name)
+  priority: HIGH
+  tags: [kubernetes, admin-tool]
